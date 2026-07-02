@@ -322,7 +322,7 @@ input,textarea{font-family:inherit;}
   <div class="modal-box">
     <h3>Sincronização via GitHub</h3>
     <div class="note">
-      As visitas e compras registradas ficam salvas num arquivo <span class="mono">data.json</span> dentro do seu repositório GitHub, assim os dados aparecem tanto no celular quanto no computador. O token fica salvo só neste navegador — nunca é enviado a mais ninguém além do GitHub.
+      As visitas e compras registradas ficam salvas num arquivo <span class="mono">data.json</span> dentro do seu repositório GitHub, assim os dados aparecem tanto no celular quanto no computador. O token fica salvo só neste navegador — nunca é enviado a mais ninguém além do GitHub. Enquanto a aba estiver aberta, o site verifica atualizações a cada ~25s automaticamente — não precisa recarregar a página.
     </div>
     <div class="field"><label>Usuário/organização GitHub</label><input id="cfgOwner" type="text" placeholder="ex: srwss" autocomplete="off"></div>
     <div class="field"><label>Nome do repositório</label><input id="cfgRepo" type="text" placeholder="ex: rota-wesley" autocomplete="off"></div>
@@ -450,18 +450,44 @@ async function githubPutFile(payload, sha){
 }
 
 async function pullFromGithub(){
-  if(!syncConfig) return;
+  if(!syncConfig) return false;
   syncState = 'syncing'; renderSyncBadge();
+  let changed = false;
   try{
     const { content } = await githubGetFile();
-    if(content){ state = content; saveStateLocalOnly(); }
+    if(content){
+      changed = JSON.stringify(content) !== JSON.stringify(state);
+      state = content; saveStateLocalOnly();
+    }
     syncState = 'ok'; syncMsg = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR').slice(0,5);
   }catch(e){
     syncState = 'error'; syncMsg = 'Erro ao puxar dados: ' + e.message;
     console.error(e);
   }
   renderSyncBadge();
+  return changed;
 }
+
+/* ---------- Auto-pull: mantém os aparelhos em dia sem precisar clicar ---------- */
+let autoPullTimer = null;
+function startAutoPull(){
+  stopAutoPull();
+  if(!syncConfig) return;
+  autoPullTimer = setInterval(async () => {
+    if(document.hidden) return;
+    if(document.querySelector('.log-form.open')) return; // não interrompe registro em andamento
+    const changed = await pullFromGithub();
+    if(changed){ render(); showToast('Dados atualizados do outro aparelho.'); }
+  }, 25000);
+}
+function stopAutoPull(){ if(autoPullTimer){ clearInterval(autoPullTimer); autoPullTimer = null; } }
+
+document.addEventListener('visibilitychange', async () => {
+  if(document.hidden || !syncConfig) return;
+  if(document.querySelector('.log-form.open')) return;
+  const changed = await pullFromGithub();
+  if(changed){ render(); showToast('Dados atualizados do outro aparelho.'); }
+});
 
 async function pushToGithub(attempt){
   if(!syncConfig) return;
@@ -834,6 +860,7 @@ document.getElementById('btnSaveSync').addEventListener('click', async () => {
   saveSyncConfig(syncConfig);
   await pullFromGithub();
   render();
+  startAutoPull();
   showToast('Sincronização ativada.');
 });
 
@@ -848,6 +875,7 @@ document.getElementById('btnClearSync').addEventListener('click', () => {
     clearSyncConfig();
     syncConfig = null;
     syncState = 'off';
+    stopAutoPull();
     renderSyncBadge();
     showToast('Sincronização removida deste aparelho.');
   }
@@ -856,5 +884,6 @@ document.getElementById('btnClearSync').addEventListener('click', () => {
 (async function init(){
   if(syncConfig) await pullFromGithub();
   render();
+  startAutoPull();
 })();
 </script>
