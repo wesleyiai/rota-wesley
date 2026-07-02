@@ -1,5 +1,7 @@
 {
   "cycleStart": "2026-07-02",
-  "visited": {},
+  "visited": {
+    "20701": true
+  },
   "purchases": {}
 }
