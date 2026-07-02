@@ -3,5 +3,14 @@
   "visited": {
     "20701": true
   },
-  "purchases": {}
+  "purchases": {
+    "20701": [
+      {
+        "date": "2026-07-02",
+        "value": 470.1,
+        "notes": "",
+        "loggedAt": "2026-07-02T20:51:22.040Z"
+      }
+    ]
+  }
 }
