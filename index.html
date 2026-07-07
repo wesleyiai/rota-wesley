@@ -351,6 +351,40 @@ input,textarea{font-family:inherit;}
 .alert-item .go{font-family:'Plex Mono';font-size:12px;color:var(--accent);white-space:nowrap;background:var(--accent-tint);padding:5px 9px;border-radius:var(--radius-tag);font-weight:600;}
 .empty-note{color:var(--ink-faint);font-size:14px;font-family:'Plex Mono';padding:6px 0;}
 
+/* ---------- Redes (mesma fantasia) ---------- */
+.network-card{
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent-cyan);
+  border-radius:var(--radius);margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden;
+}
+.network-header{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:14px 16px;border-bottom:1px solid var(--border);background:var(--surface-2);
+}
+.network-header h3{font-size:16px;font-weight:700;display:flex;align-items:center;}
+.network-header h3::before{content:'</>';font-family:'Plex Mono';font-size:13px;font-weight:600;color:var(--accent-cyan);margin-right:7px;}
+.network-header .cnt{
+  font-family:'Plex Mono';font-size:12px;color:var(--accent-deep);background:var(--accent-tint);
+  padding:5px 9px;border-radius:var(--radius-tag);font-weight:600;white-space:nowrap;
+}
+.network-stores{display:flex;flex-direction:column;}
+.network-store{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:11px 16px;border-top:1px solid var(--border);font-size:14px;cursor:pointer;
+  background:none;border-left:none;border-right:none;border-bottom:none;width:100%;text-align:left;
+  font-family:inherit;color:inherit;transition:background .15s ease;
+}
+.network-store:first-child{border-top:none;}
+.network-store:hover{background:var(--accent-tint);}
+.network-store.visited{opacity:.6;}
+.ns-main{display:flex;align-items:center;gap:8px;min-width:0;}
+.ns-razao{color:var(--ink-soft);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ns-loc{color:var(--ink-soft);font-size:13px;font-family:'Plex Mono';}
+.ns-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ns-day{
+  font-family:'Plex Mono';font-size:11.5px;color:var(--accent);white-space:nowrap;
+  background:var(--accent-tint);padding:4px 8px;border-radius:var(--radius-tag);font-weight:600;
+}
+
 /* ---------- Footer / data controls ---------- */
 .foot-controls{
   margin-top:28px;padding-top:16px;border-top:1px solid var(--border);
@@ -673,6 +707,22 @@ function renderSyncBadge(){
 
 function clientsForDay(day){ return CLIENTS.filter(c => c.day === day).sort((a,b)=>a.seq-b.seq); }
 
+function networkKey(f){ return f.trim().toLowerCase().replace(/^farmácias\b/, 'farmácia'); }
+function networkGroups(){
+  const byKey = {};
+  for(const c of CLIENTS){
+    const key = networkKey(c.f);
+    (byKey[key] = byKey[key] || []).push(c);
+  }
+  return Object.values(byKey)
+    .filter(list => list.length > 1)
+    .map(list => ({
+      name: list[0].f,
+      stores: list.slice().sort((a,b)=> (a.day-b.day) || (a.seq-b.seq)),
+    }))
+    .sort((a,b)=> b.stores.length - a.stores.length);
+}
+
 function dayRouteUrl(day){
   const pts = clientsForDay(day).filter(c => c.lat != null);
   if(pts.length < 2) return null;
@@ -730,6 +780,10 @@ function renderTabs(){
   let html = `<button class="daytab overview ${activeView==='overview'?'active':''}" data-view="overview">
       <span class="n">RESUMO</span><span class="name">Visão geral</span><span class="cnt">${visitedCountTotal()}/${CLIENTS.length} visitadas</span>
     </button>`;
+  const nets = networkGroups();
+  html += `<button class="daytab overview ${activeView==='networks'?'active':''}" data-view="networks">
+      <span class="n">REDES</span><span class="name">Redes de farmácias</span><span class="cnt">${nets.length} redes · ${nets.reduce((s,g)=>s+g.stores.length,0)} lojas</span>
+    </button>`;
   for(let d=1; d<=9; d++){
     const total = clientsForDay(d).length;
     const vis = visitedCountDay(d);
@@ -741,7 +795,11 @@ function renderTabs(){
   }
   el.innerHTML = html;
   el.querySelectorAll('.daytab').forEach(btn => {
-    btn.addEventListener('click', () => { activeView = btn.dataset.view === 'overview' ? 'overview' : Number(btn.dataset.view); render(); });
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.view;
+      activeView = (v === 'overview' || v === 'networks') ? v : Number(v);
+      render();
+    });
   });
 }
 
@@ -931,12 +989,61 @@ function renderOverview(){
   `;
 }
 
+function renderNetworks(){
+  const nets = networkGroups().filter(g => !searchTerm || g.name.toLowerCase().includes(searchTerm.toLowerCase()) || g.stores.some(matchesSearch));
+  return `
+    <div class="day-head">
+      <div>
+        <h2>Redes de farmácias</h2>
+        <div class="meta">${nets.length} rede${nets.length!==1?'s':''} · lojas com o mesmo nome fantasia agrupadas</div>
+      </div>
+    </div>
+    ${nets.map(g => `
+      <div class="network-card">
+        <div class="network-header">
+          <h3>${escapeHtml(g.name)}</h3>
+          <span class="cnt">${g.stores.length} lojas</span>
+        </div>
+        <div class="network-stores">
+          ${g.stores.map(c => `
+            <button class="network-store ${state.visited[c.c]?'visited':''}" data-cod="${c.c}" data-day="${c.day}">
+              <div class="ns-main">
+                <span class="code-chip">#${c.c}</span>
+                <span class="ns-razao">${escapeHtml(c.r)}</span>
+              </div>
+              <div class="ns-right">
+                <span class="ns-loc">${escapeHtml(c.b)}${c.ci!=='Aracaju' ? ' · '+escapeHtml(c.ci) : ''}</span>
+                ${c.bl ? '<span class="badge crit">Bloqueado</span>' : ''}
+                <span class="ns-day">${dayLabelShort(c.day)}</span>
+              </div>
+            </button>`).join('')}
+        </div>
+      </div>`).join('') || '<div class="empty-note">Nenhuma rede encontrada para essa busca.</div>'}
+  `;
+}
+
+function attachNetworkEvents(){
+  document.querySelectorAll('.network-store').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeView = Number(btn.dataset.day);
+      render();
+      requestAnimationFrame(() => {
+        const card = document.querySelector(`.card[data-cod="${btn.dataset.cod}"]`);
+        if(card) card.scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    });
+  });
+}
+
 function render(){
   renderTabs();
   renderManifestStats();
   const el = document.getElementById('content');
-  el.innerHTML = activeView === 'overview' ? renderOverview() : renderDayView(activeView);
+  if(activeView === 'overview') el.innerHTML = renderOverview();
+  else if(activeView === 'networks') el.innerHTML = renderNetworks();
+  else el.innerHTML = renderDayView(activeView);
   attachCardEvents();
+  if(activeView === 'networks') attachNetworkEvents();
 }
 
 function attachCardEvents(){
