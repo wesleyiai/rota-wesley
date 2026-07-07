@@ -161,26 +161,37 @@ input,textarea{font-family:inherit;}
 /* ---------- Client card ---------- */
 .card{
   position:relative;
-  background:var(--surface);
+  background:
+    linear-gradient(115deg, transparent 32%, rgba(10,102,255,.10) 46%, rgba(0,184,196,.09) 50%, transparent 64%),
+    var(--surface);
+  background-size:280% 100%, 100% 100%;
+  background-position:220% 0, 0 0;
   border:1px solid var(--border);
   border-left:3px solid var(--border-strong);
   border-radius:var(--radius);
   padding:14px 16px;
   margin-bottom:10px;
   box-shadow:var(--shadow);
-  transition:border-color .15s ease, box-shadow .2s ease, transform .12s ease;
-  transform:perspective(700px) rotateX(0deg) rotateY(0deg);
+  transition:border-color .15s ease, box-shadow .2s ease, transform .1s ease;
+  transform:perspective(600px) rotateX(0deg) rotateY(0deg) scale(1);
   transform-style:preserve-3d;
   will-change:transform;
+  animation:cardShimmer 6s ease-in-out infinite;
+  animation-delay:var(--shimmer-delay,0s);
 }
 .card:hover{border-color:var(--border-strong);border-left-color:var(--accent);box-shadow:0 6px 16px rgba(12,18,32,.08), 0 16px 32px rgba(10,102,255,.10);}
+@keyframes cardShimmer{
+  0%,15%{background-position:220% 0, 0 0;}
+  85%,100%{background-position:-60% 0, 0 0;}
+}
 .card::after{
   content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%), rgba(10,102,255,.09), transparent 62%);
-  opacity:0;transition:opacity .25s ease;
+  background:radial-gradient(320px circle at var(--mx,50%) var(--my,50%), rgba(10,102,255,.20), transparent 62%);
+  opacity:0;transition:opacity .2s ease;
 }
 .card:hover::after,.card.tilt-active::after{opacity:1;}
-.card.tilt-reset{transition:transform .4s cubic-bezier(.22,1,.36,1), border-color .15s ease, box-shadow .2s ease;}
+.card.tilt-active{box-shadow:0 22px 40px rgba(10,102,255,.24), 0 8px 18px rgba(12,18,32,.14) !important;border-left-color:var(--accent) !important;}
+.card.tilt-reset{transition:transform .45s cubic-bezier(.22,1,.36,1), border-color .2s ease, box-shadow .3s ease;}
 .route-line .card::before{
   content:attr(data-n);
   position:absolute;left:-30px;top:16px;width:22px;height:22px;
@@ -190,11 +201,11 @@ input,textarea{font-family:inherit;}
   font-family:'Plex Mono';font-size:10.5px;font-weight:600;
 }
 .card.visited{border-left-color:var(--good);border-color:var(--good-tint);}
-.card.visited::before{background:var(--good);border-color:var(--good);color:#fff;animation:markerPing 1.4s ease-out 1;}
+.card.visited::before{background:var(--good);border-color:var(--good);color:#fff;animation:markerPing 1.8s ease-out 1;}
 @keyframes markerPing{
-  0%{box-shadow:0 0 0 3px var(--good-tint);}
-  40%{box-shadow:0 0 0 9px rgba(23,163,74,.22);}
-  100%{box-shadow:0 0 0 3px var(--good-tint);}
+  0%{box-shadow:0 0 0 3px var(--good-tint);transform:scale(1);}
+  35%{box-shadow:0 0 0 14px rgba(23,163,74,.28);transform:scale(1.22);}
+  100%{box-shadow:0 0 0 3px var(--good-tint);transform:scale(1);}
 }
 
 .card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
@@ -766,7 +777,7 @@ function cardHtml(c, n){
     ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
     : `<div class="hist-empty">Nenhuma compra registrada ainda.</div>`;
   return `
-  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}">
+  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}" style="--shimmer-delay:${(-(n%7)*0.9).toFixed(2)}s">
     <div class="card-top">
       <div>
         <div class="card-name"><span class="code-chip">#${c.c}</span>${escapeHtml(c.f)}</div>
@@ -928,17 +939,17 @@ function attachCardTilt(card){
     const py = (clientY - r.top) / r.height;
     card.style.setProperty('--mx', (px*100).toFixed(1)+'%');
     card.style.setProperty('--my', (py*100).toFixed(1)+'%');
-    const rx = (0.5 - py) * 6;
-    const ry = (px - 0.5) * 6;
+    const rx = (0.5 - py) * 18;
+    const ry = (px - 0.5) * 18;
     card.classList.remove('tilt-reset');
     card.classList.add('tilt-active');
-    card.style.transform = `perspective(700px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+    card.style.transform = `perspective(600px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(1.025)`;
   }
   function resetTilt(){
     active = false;
     card.classList.remove('tilt-active');
     card.classList.add('tilt-reset');
-    card.style.transform = 'perspective(700px) rotateX(0deg) rotateY(0deg)';
+    card.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg) scale(1)';
   }
   // mouse: acompanha o cursor em hover
   card.addEventListener('pointermove', e => {
