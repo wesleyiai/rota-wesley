@@ -166,44 +166,20 @@ input,textarea{font-family:inherit;}
   content:'';position:absolute;left:13px;top:14px;bottom:14px;width:2px;
   background:repeating-linear-gradient(to bottom, var(--accent) 0 5px, transparent 5px 10px);
 }
-.route-line::after{
-  content:'';position:absolute;left:9px;top:14px;width:10px;height:10px;border-radius:50%;
-  background:var(--accent-cyan);
-  box-shadow:0 0 8px 2px var(--accent-cyan), 0 0 20px 6px rgba(0,184,196,.55);
-  animation:routePulse 3.4s linear infinite;
-}
-@keyframes routePulse{
-  0%{top:14px;opacity:0;}
-  6%{opacity:1;}
-  94%{opacity:1;}
-  100%{top:calc(100% - 24px);opacity:0;}
-}
 
 /* ---------- Client card ---------- */
 .card{
   position:relative;
-  background:
-    linear-gradient(115deg, transparent 40%, rgba(0,184,196,.40) 48.5%, rgba(10,102,255,.55) 50%, rgba(0,184,196,.40) 51.5%, transparent 60%),
-    var(--surface);
-  background-size:280% 100%, 100% 100%;
-  background-position:220% 0, 0 0;
+  background:var(--surface);
   border:1px solid var(--border);
   border-left:3px solid var(--border-strong);
   border-radius:var(--radius);
   margin-bottom:26px;
-  box-shadow:0 1px 2px rgba(12,18,32,.05), 0 22px 34px -12px rgba(10,102,255,.30), 0 36px 56px -20px rgba(12,18,32,.32);
-  transition:border-color .15s ease, box-shadow .2s ease, transform .1s ease;
-  transform:rotateX(0deg) rotateY(0deg) scale(1);
+  box-shadow:0 1px 2px rgba(12,18,32,.05), 0 22px 34px -12px rgba(10,102,255,.22), 0 36px 56px -20px rgba(12,18,32,.28);
+  transition:border-color .15s ease;
   transform-style:preserve-3d;
-  will-change:transform;
-  animation:cardShimmer 6s ease-in-out infinite;
-  animation-delay:var(--shimmer-delay,0s);
 }
 .card:hover{border-color:var(--border-strong);border-left-color:var(--accent);}
-@keyframes cardShimmer{
-  0%,15%{background-position:220% 0, 0 0;}
-  85%,100%{background-position:-60% 0, 0 0;}
-}
 .card-float{
   position:relative;padding:14px 16px;
   transform-style:preserve-3d;
@@ -214,21 +190,6 @@ input,textarea{font-family:inherit;}
   0%,100%{transform:translateZ(0px) translateY(0px) rotateX(2deg);}
   50%{transform:translateZ(34px) translateY(-8px) rotateX(.5deg);}
 }
-.card::after{
-  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:radial-gradient(320px circle at var(--mx,50%) var(--my,50%), rgba(10,102,255,.20), transparent 62%);
-  opacity:0;transition:opacity .2s ease;
-}
-.card:hover::after,.card.tilt-active::after{opacity:1;}
-.card.tilt-active{box-shadow:0 22px 40px rgba(10,102,255,.24), 0 8px 18px rgba(12,18,32,.14) !important;border-left-color:var(--accent) !important;}
-.card.tilt-reset{transition:transform .45s cubic-bezier(.22,1,.36,1), border-color .2s ease, box-shadow .3s ease;}
-
-.crn{position:absolute;width:14px;height:14px;border-color:var(--accent-cyan);opacity:.4;transition:opacity .2s ease, border-color .2s ease;pointer-events:none;}
-.crn.tl{top:4px;left:4px;border-top:2px solid;border-left:2px solid;}
-.crn.tr{top:4px;right:4px;border-top:2px solid;border-right:2px solid;}
-.crn.bl{bottom:4px;left:4px;border-bottom:2px solid;border-left:2px solid;}
-.crn.br{bottom:4px;right:4px;border-bottom:2px solid;border-right:2px solid;}
-.card:hover .crn,.card.tilt-active .crn{opacity:1;border-color:var(--accent);}
 .route-line .card::before{
   content:attr(data-n);
   position:absolute;left:-30px;top:16px;width:22px;height:22px;
@@ -238,12 +199,7 @@ input,textarea{font-family:inherit;}
   font-family:'Plex Mono';font-size:10.5px;font-weight:600;
 }
 .card.visited{border-left-color:var(--good);border-color:var(--good-tint);}
-.card.visited::before{background:var(--good);border-color:var(--good);color:#fff;animation:markerPing 1.8s ease-out 1;}
-@keyframes markerPing{
-  0%{box-shadow:0 0 0 3px var(--good-tint);transform:scale(1);}
-  35%{box-shadow:0 0 0 14px rgba(23,163,74,.28);transform:scale(1.22);}
-  100%{box-shadow:0 0 0 3px var(--good-tint);transform:scale(1);}
-}
+.card.visited::before{background:var(--good);border-color:var(--good);color:#fff;}
 
 .card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
 .card-name{font-weight:700;font-size:18px;line-height:1.28;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -289,7 +245,7 @@ input,textarea{font-family:inherit;}
 }
 .contact-chip:hover{background:var(--live);color:#fff;}
 
-.card-foot{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap;align-items:center;}
+.card-foot{display:flex;gap:8px;margin-top:13px;padding-top:13px;border-top:1px dashed var(--border);flex-wrap:wrap;align-items:center;}
 .btn{
   border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);
   padding:10px 14px;font-size:14px;font-weight:600;color:var(--ink);
@@ -309,13 +265,6 @@ input,textarea{font-family:inherit;}
   font-family:'Plex Mono';font-weight:600;font-size:13px;letter-spacing:.02em;
   color:var(--good);background:var(--good-tint);border-radius:var(--radius-tag);
   padding:8px 13px;display:inline-flex;gap:6px;align-items:center;
-  transform-origin:left center;
-  animation:stampDeploy .5s cubic-bezier(.2,.8,.2,1);
-}
-@keyframes stampDeploy{
-  0%{opacity:0;transform:perspective(400px) rotateX(-85deg) scale(.85);}
-  60%{opacity:1;transform:perspective(400px) rotateX(10deg) scale(1.04);}
-  100%{opacity:1;transform:perspective(400px) rotateX(0deg) scale(1);}
 }
 
 .log-form{
@@ -829,9 +778,8 @@ function cardHtml(c, n){
     ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
     : `<div class="hist-empty">Nenhuma compra registrada ainda.</div>`;
   return `
-  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}" style="--shimmer-delay:${(-(n%7)*0.9).toFixed(2)}s;--float-delay:${(-(n%5)*0.66).toFixed(2)}s">
+  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}" style="--float-delay:${(-(n%5)*0.66).toFixed(2)}s">
     <div class="card-float">
-    <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
     <div class="card-top">
       <div>
         <div class="card-name"><span class="code-chip">#${c.c}</span><span class="card-name-text">${escapeHtml(c.f)}</span></div>
@@ -979,83 +927,16 @@ function renderOverview(){
   `;
 }
 
-let bootDecodeDone = false;
-const DECODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&';
-function decodeReveal(el, finalText, duration, delay){
-  setTimeout(() => {
-    const len = finalText.length;
-    let frame = 0;
-    const totalFrames = Math.max(1, Math.round(duration/32));
-    const revealEvery = totalFrames/len;
-    const timer = setInterval(() => {
-      frame++;
-      const revealedCount = Math.min(len, Math.floor(frame/revealEvery));
-      let out = '';
-      for(let i=0;i<len;i++){
-        if(i < revealedCount || finalText[i] === ' ') out += finalText[i];
-        else out += DECODE_CHARS[Math.floor(Math.random()*DECODE_CHARS.length)];
-      }
-      el.textContent = out;
-      if(revealedCount >= len){ clearInterval(timer); el.textContent = finalText; }
-    }, 32);
-  }, delay);
-}
-
 function render(){
   renderTabs();
   renderManifestStats();
   const el = document.getElementById('content');
   el.innerHTML = activeView === 'overview' ? renderOverview() : renderDayView(activeView);
   attachCardEvents();
-  if(!bootDecodeDone && !reduceMotionMQ.matches){
-    bootDecodeDone = true;
-    document.querySelectorAll('.card-name-text').forEach((nameEl, i) => {
-      decodeReveal(nameEl, nameEl.textContent, 550, Math.min(i,10)*70);
-    });
-  }
-}
-
-const reduceMotionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
-function attachCardTilt(card){
-  if(reduceMotionMQ.matches) return;
-  let active = false;
-  function setTilt(clientX, clientY){
-    const r = card.getBoundingClientRect();
-    const px = (clientX - r.left) / r.width;
-    const py = (clientY - r.top) / r.height;
-    card.style.setProperty('--mx', (px*100).toFixed(1)+'%');
-    card.style.setProperty('--my', (py*100).toFixed(1)+'%');
-    const rx = (0.5 - py) * 18;
-    const ry = (px - 0.5) * 18;
-    card.classList.remove('tilt-reset');
-    card.classList.add('tilt-active');
-    card.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(1.03)`;
-  }
-  function resetTilt(){
-    active = false;
-    card.classList.remove('tilt-active');
-    card.classList.add('tilt-reset');
-    card.style.transform = 'rotateX(0deg) rotateY(0deg) scale(1)';
-  }
-  // mouse: acompanha o cursor em hover
-  card.addEventListener('pointermove', e => {
-    if(e.pointerType !== 'mouse') { if(active) setTilt(e.clientX, e.clientY); return; }
-    setTilt(e.clientX, e.clientY);
-  });
-  card.addEventListener('pointerleave', e => { if(e.pointerType === 'mouse') resetTilt(); });
-  // toque: inclina ao pressionar, volta suave ao soltar (não atrapalha o scroll)
-  card.addEventListener('pointerdown', e => {
-    if(e.pointerType === 'mouse') return;
-    active = true;
-    setTilt(e.clientX, e.clientY);
-  });
-  card.addEventListener('pointerup', resetTilt);
-  card.addEventListener('pointercancel', resetTilt);
 }
 
 function attachCardEvents(){
   document.querySelectorAll('.card').forEach(card => {
-    attachCardTilt(card);
     const cod = card.dataset.cod;
     const visitBtn = card.querySelector('[data-action="visit"]');
     const unvisitBtn = card.querySelector('[data-action="unvisit"]');
