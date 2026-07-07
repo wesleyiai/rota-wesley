@@ -203,6 +203,17 @@ input,textarea{font-family:inherit;}
 .card-info a{color:var(--ink);text-decoration:none;border-bottom:1px solid transparent;}
 .card-info a:hover{color:var(--accent);border-color:var(--accent-tint);}
 
+.ops-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:11px;padding-top:11px;border-top:1px dashed var(--border);}
+.last-visit{display:inline-flex;align-items:center;gap:6px;font-family:'Plex Mono';font-size:12px;color:var(--ink-soft);}
+.last-visit svg{color:var(--ink-faint);flex:0 0 auto;}
+.last-visit.never{color:var(--ink-faint);}
+.freq-row{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);margin-left:auto;}
+.freq-row span{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+.freq-select{
+  border:1px solid var(--border);border-radius:var(--radius-tag);background:var(--surface);
+  color:var(--ink);font-size:13px;font-weight:600;font-family:inherit;padding:6px 8px;min-height:32px;
+}
+
 .contacts{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
 .contact-chip{
   display:inline-flex;align-items:center;gap:5px;
@@ -456,12 +467,17 @@ function dayLabel(d){ return `${weekdayOf(d)} · Semana ${weekOf(d)}`; }
 function dayLabelShort(d){ return `${weekdayOf(d).slice(0,3).toUpperCase()} · S${weekOf(d)}`; }
 
 const STORE_KEY = "rotaWesley271_v1";
+function normalizeState(s){
+  if(!s.freq) s.freq = {};
+  if(!s.lastVisit) s.lastVisit = {};
+  return s;
+}
 function loadState(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw) return normalizeState(JSON.parse(raw));
   }catch(e){}
-  return { cycleStart: todayISO(), visited:{}, purchases:{} };
+  return normalizeState({ cycleStart: todayISO(), visited:{}, purchases:{} });
 }
 function saveStateLocalOnly(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 function saveState(){ saveStateLocalOnly(); queuePush(); }
@@ -547,7 +563,7 @@ async function pullFromGithub(){
     const { content } = await githubGetFile();
     if(content){
       changed = JSON.stringify(content) !== JSON.stringify(state);
-      state = content; saveStateLocalOnly();
+      state = normalizeState(content); saveStateLocalOnly();
     }
     syncState = 'ok'; syncMsg = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR').slice(0,5);
   }catch(e){
@@ -701,8 +717,12 @@ function badgesFor(c){
   return b;
 }
 
+const FREQ_LABELS = { '15':'Quinzenal (15 dias)', '30':'Mensal (30 dias)', '45':'45 dias' };
+
 function cardHtml(c, n){
   const visited = !!state.visited[c.c];
+  const freq = state.freq[c.c] || '';
+  const lastVisit = state.lastVisit[c.c];
   const hist = (state.purchases[c.c]||[]).slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
   const histHtml = hist.length
     ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
@@ -733,6 +753,19 @@ function cardHtml(c, n){
           ${escapeHtml(ct.name)}
         </a>`).join('')}
     </div>` : ''}
+    <div class="ops-row">
+      <div class="last-visit ${lastVisit ? '' : 'never'}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+        ${lastVisit ? `Última visita: ${fmtDateBR(lastVisit)}` : 'Ainda sem visita registrada'}
+      </div>
+      <label class="freq-row">
+        <span>Atendimento</span>
+        <select class="freq-select" data-action="freq">
+          <option value="" ${!freq ? 'selected' : ''}>Definir intervalo</option>
+          ${Object.entries(FREQ_LABELS).map(([v,l]) => `<option value="${v}" ${freq===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </label>
+    </div>
     <div class="card-foot">
       ${visited
         ? `<span class="stamp-mark">✓ Visitado neste ciclo</span><button class="btn ghost" data-action="unvisit">desfazer</button>`
@@ -849,10 +882,16 @@ function attachCardEvents(){
     const visitBtn = card.querySelector('[data-action="visit"]');
     const unvisitBtn = card.querySelector('[data-action="unvisit"]');
     const toggleBtn = card.querySelector('[data-action="toggle-log"]');
+    const freqSelect = card.querySelector('[data-action="freq"]');
     const form = card.querySelector('[data-form]');
 
     if(visitBtn) visitBtn.addEventListener('click', () => {
-      state.visited[cod] = true; saveState(); render(); showToast('Visita carimbada.');
+      state.visited[cod] = true; state.lastVisit[cod] = todayISO(); saveState(); render(); showToast('Visita carimbada.');
+    });
+    if(freqSelect) freqSelect.addEventListener('change', () => {
+      if(freqSelect.value) state.freq[cod] = freqSelect.value; else delete state.freq[cod];
+      saveState();
+      showToast(freqSelect.value ? 'Intervalo de atendimento definido: ' + FREQ_LABELS[freqSelect.value] : 'Intervalo de atendimento removido.');
     });
     if(unvisitBtn) unvisitBtn.addEventListener('click', () => {
       delete state.visited[cod]; saveState(); render();
@@ -867,6 +906,7 @@ function attachCardEvents(){
       if(!state.purchases[cod]) state.purchases[cod] = [];
       state.purchases[cod].push(entry);
       state.visited[cod] = true;
+      state.lastVisit[cod] = entry.date;
       saveState();
       showToast('Compra registrada — ' + money(entry.value));
       render();
@@ -907,7 +947,7 @@ document.getElementById('fileImport').addEventListener('change', e => {
     try{
       const data = JSON.parse(reader.result);
       if(data && data.purchases && data.visited){
-        state = data;
+        state = normalizeState(data);
         saveState();
         render();
         showToast('Backup importado.');
