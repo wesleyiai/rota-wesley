@@ -707,7 +707,11 @@ function renderSyncBadge(){
 
 function clientsForDay(day){ return CLIENTS.filter(c => c.day === day).sort((a,b)=>a.seq-b.seq); }
 
-function networkKey(f){ return f.trim().toLowerCase().replace(/^farmácias\b/, 'farmácia'); }
+function networkKey(f){
+  const norm = f.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if(/^farmacias?\s+edson\b/.test(norm)) return 'farmácia edson';
+  return f.trim().toLowerCase().replace(/^farmácias\b/, 'farmácia');
+}
 function networkGroups(){
   const byKey = {};
   for(const c of CLIENTS){
@@ -717,7 +721,7 @@ function networkGroups(){
   return Object.values(byKey)
     .filter(list => list.length > 1)
     .map(list => ({
-      name: list[0].f,
+      name: networkKey(list[0].f) === 'farmácia edson' ? 'Farmácia Edson' : list[0].f,
       stores: list.slice().sort((a,b)=> (a.day-b.day) || (a.seq-b.seq)),
     }))
     .sort((a,b)=> b.stores.length - a.stores.length);
