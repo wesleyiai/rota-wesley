@@ -93,11 +93,20 @@ input,textarea{font-family:inherit;}
 .mstat{
   background:rgba(255,255,255,.045);
   border:1px solid rgba(255,255,255,.10);
+  border-left:2px solid rgba(255,255,255,.14);
   border-radius:6px;
   padding:10px 10px;
 }
 .mstat b{display:block;font-family:'Plex Mono';font-size:17px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;line-height:1.2;}
 .mstat span{font-size:10.5px;color:#8393B4;text-transform:uppercase;letter-spacing:.05em;display:block;margin-top:3px;}
+.mstat.good{border-left-color:var(--good);}
+.mstat.good b{color:#4ADE80;}
+.mstat.warn{border-left-color:var(--warn);}
+.mstat.warn b{color:#FBBF24;}
+.mstat.accent{border-left-color:var(--accent-cyan);}
+.mstat.accent b{color:var(--accent-cyan);}
+.mstat.money{border-left-color:var(--gold);}
+.mstat.money b{color:var(--gold);}
 
 /* ---------- Route strip (day tabs) ---------- */
 .route-strip{
@@ -152,37 +161,58 @@ input,textarea{font-family:inherit;}
 .day-head .region{color:var(--accent);}
 .day-head .meta{font-family:'Plex Mono';font-size:13px;color:var(--ink-soft);margin-top:3px;}
 
-.route-line{position:relative;padding-left:30px;margin-top:6px;}
+.route-line{position:relative;padding-left:30px;margin-top:6px;perspective:1100px;}
 .route-line::before{
   content:'';position:absolute;left:13px;top:14px;bottom:14px;width:2px;
   background:repeating-linear-gradient(to bottom, var(--accent) 0 5px, transparent 5px 10px);
+}
+.route-line::after{
+  content:'';position:absolute;left:9px;top:14px;width:10px;height:10px;border-radius:50%;
+  background:var(--accent-cyan);
+  box-shadow:0 0 8px 2px var(--accent-cyan), 0 0 20px 6px rgba(0,184,196,.55);
+  animation:routePulse 3.4s linear infinite;
+}
+@keyframes routePulse{
+  0%{top:14px;opacity:0;}
+  6%{opacity:1;}
+  94%{opacity:1;}
+  100%{top:calc(100% - 24px);opacity:0;}
 }
 
 /* ---------- Client card ---------- */
 .card{
   position:relative;
   background:
-    linear-gradient(115deg, transparent 32%, rgba(10,102,255,.10) 46%, rgba(0,184,196,.09) 50%, transparent 64%),
+    linear-gradient(115deg, transparent 40%, rgba(0,184,196,.40) 48.5%, rgba(10,102,255,.55) 50%, rgba(0,184,196,.40) 51.5%, transparent 60%),
     var(--surface);
   background-size:280% 100%, 100% 100%;
   background-position:220% 0, 0 0;
   border:1px solid var(--border);
   border-left:3px solid var(--border-strong);
   border-radius:var(--radius);
-  padding:14px 16px;
-  margin-bottom:10px;
-  box-shadow:var(--shadow);
+  margin-bottom:26px;
+  box-shadow:0 1px 2px rgba(12,18,32,.05), 0 22px 34px -12px rgba(10,102,255,.30), 0 36px 56px -20px rgba(12,18,32,.32);
   transition:border-color .15s ease, box-shadow .2s ease, transform .1s ease;
-  transform:perspective(600px) rotateX(0deg) rotateY(0deg) scale(1);
+  transform:rotateX(0deg) rotateY(0deg) scale(1);
   transform-style:preserve-3d;
   will-change:transform;
   animation:cardShimmer 6s ease-in-out infinite;
   animation-delay:var(--shimmer-delay,0s);
 }
-.card:hover{border-color:var(--border-strong);border-left-color:var(--accent);box-shadow:0 6px 16px rgba(12,18,32,.08), 0 16px 32px rgba(10,102,255,.10);}
+.card:hover{border-color:var(--border-strong);border-left-color:var(--accent);}
 @keyframes cardShimmer{
   0%,15%{background-position:220% 0, 0 0;}
   85%,100%{background-position:-60% 0, 0 0;}
+}
+.card-float{
+  position:relative;padding:14px 16px;
+  transform-style:preserve-3d;
+  animation:cardFloat 4.6s ease-in-out infinite;
+  animation-delay:var(--float-delay,0s);
+}
+@keyframes cardFloat{
+  0%,100%{transform:translateZ(0px) translateY(0px) rotateX(2deg);}
+  50%{transform:translateZ(34px) translateY(-8px) rotateX(.5deg);}
 }
 .card::after{
   content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
@@ -192,6 +222,13 @@ input,textarea{font-family:inherit;}
 .card:hover::after,.card.tilt-active::after{opacity:1;}
 .card.tilt-active{box-shadow:0 22px 40px rgba(10,102,255,.24), 0 8px 18px rgba(12,18,32,.14) !important;border-left-color:var(--accent) !important;}
 .card.tilt-reset{transition:transform .45s cubic-bezier(.22,1,.36,1), border-color .2s ease, box-shadow .3s ease;}
+
+.crn{position:absolute;width:14px;height:14px;border-color:var(--accent-cyan);opacity:.4;transition:opacity .2s ease, border-color .2s ease;pointer-events:none;}
+.crn.tl{top:4px;left:4px;border-top:2px solid;border-left:2px solid;}
+.crn.tr{top:4px;right:4px;border-top:2px solid;border-right:2px solid;}
+.crn.bl{bottom:4px;left:4px;border-bottom:2px solid;border-left:2px solid;}
+.crn.br{bottom:4px;right:4px;border-bottom:2px solid;border-right:2px solid;}
+.card:hover .crn,.card.tilt-active .crn{opacity:1;border-color:var(--accent);}
 .route-line .card::before{
   content:attr(data-n);
   position:absolute;left:-30px;top:16px;width:22px;height:22px;
@@ -328,7 +365,12 @@ input,textarea{font-family:inherit;}
 .ov-tile.accent{border-top-color:var(--accent);}
 .ov-tile.accent .val{color:var(--accent);}
 .ov-tile.money .val{color:var(--ink);}
+.ov-tile.crit{border-top-color:var(--crit);}
 .ov-tile.crit .val{color:var(--crit);}
+.ov-tile.good{border-top-color:var(--good);}
+.ov-tile.good .val{color:var(--good);}
+.ov-tile.warn{border-top-color:var(--warn);}
+.ov-tile.warn .val{color:var(--warn);}
 
 .progress-outer{margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);}
 .progress-bar{height:8px;background:var(--surface-2);border-radius:2px;overflow:hidden;}
@@ -701,6 +743,14 @@ function totalInCycle(){
   }
   return sum;
 }
+function purchasedCountInCycle(){
+  let count = 0;
+  for(const cod in state.purchases){
+    if(purchasesInCycle(cod).length) count++;
+  }
+  return count;
+}
+function remainingCountTotal(){ return CLIENTS.length - visitedCountTotal(); }
 function dayTotal(day){
   let sum = 0;
   for(const c of clientsForDay(day)){
@@ -747,10 +797,12 @@ function renderManifestStats(){
   const start = new Date(state.cycleStart);
   const cycleEnd = new Date(start.getFullYear(), start.getMonth()+1, 0); // último dia do mês
   el.innerHTML = `
+    <div class="mstat good"><b>${visitedCountTotal()}/${CLIENTS.length}</b><span>Visitadas</span></div>
+    <div class="mstat warn"><b>${remainingCountTotal()}</b><span>Faltam visitar</span></div>
+    <div class="mstat accent"><b>${purchasedCountInCycle()}</b><span>Compraram</span></div>
+    <div class="mstat money"><b>${money(totalInCycle())}</b><span>Faturado</span></div>
     <div class="mstat"><b>${fmtDateBR(state.cycleStart)}</b><span>Início do ciclo</span></div>
     <div class="mstat"><b>${fmtDateBR(cycleEnd.toISOString().slice(0,10))}</b><span>Fim do mês</span></div>
-    <div class="mstat"><b>${visitedCountTotal()}/${CLIENTS.length}</b><span>Visitadas</span></div>
-    <div class="mstat"><b>${money(totalInCycle())}</b><span>Faturado</span></div>
   `;
 }
 
@@ -777,10 +829,12 @@ function cardHtml(c, n){
     ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
     : `<div class="hist-empty">Nenhuma compra registrada ainda.</div>`;
   return `
-  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}" style="--shimmer-delay:${(-(n%7)*0.9).toFixed(2)}s">
+  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}" style="--shimmer-delay:${(-(n%7)*0.9).toFixed(2)}s;--float-delay:${(-(n%5)*0.66).toFixed(2)}s">
+    <div class="card-float">
+    <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
     <div class="card-top">
       <div>
-        <div class="card-name"><span class="code-chip">#${c.c}</span>${escapeHtml(c.f)}</div>
+        <div class="card-name"><span class="code-chip">#${c.c}</span><span class="card-name-text">${escapeHtml(c.f)}</span></div>
         <div class="card-razao">${escapeHtml(c.r)}</div>
       </div>
       <div class="card-cod mono">lim. ${money(c.l).replace('R$ ','')}</div>
@@ -837,6 +891,7 @@ function cardHtml(c, n){
       </div>
     </form>
     <details class="history"><summary>Histórico de compras (${hist.length})</summary>${histHtml}</details>
+    </div>
   </div>`;
 }
 
@@ -875,6 +930,9 @@ function renderOverview(){
   return `
     <div class="ov-grid">
       <div class="ov-tile accent"><div class="lbl">Total de clientes</div><div class="val">${CLIENTS.length}</div></div>
+      <div class="ov-tile good"><div class="lbl">Visitadas</div><div class="val">${visitedCountTotal()}</div></div>
+      <div class="ov-tile warn"><div class="lbl">Faltam visitar</div><div class="val">${remainingCountTotal()}</div></div>
+      <div class="ov-tile good"><div class="lbl">Compraram</div><div class="val">${purchasedCountInCycle()}</div></div>
       <div class="ov-tile money"><div class="lbl">Faturado no ciclo</div><div class="val">${money(totalInCycle())}</div></div>
       <div class="ov-tile crit"><div class="lbl">Bloqueados</div><div class="val">${blocked.length}</div></div>
       <div class="ov-tile"><div class="lbl">Sem compra +90d</div><div class="val">${stale.length}</div></div>
@@ -921,12 +979,40 @@ function renderOverview(){
   `;
 }
 
+let bootDecodeDone = false;
+const DECODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&';
+function decodeReveal(el, finalText, duration, delay){
+  setTimeout(() => {
+    const len = finalText.length;
+    let frame = 0;
+    const totalFrames = Math.max(1, Math.round(duration/32));
+    const revealEvery = totalFrames/len;
+    const timer = setInterval(() => {
+      frame++;
+      const revealedCount = Math.min(len, Math.floor(frame/revealEvery));
+      let out = '';
+      for(let i=0;i<len;i++){
+        if(i < revealedCount || finalText[i] === ' ') out += finalText[i];
+        else out += DECODE_CHARS[Math.floor(Math.random()*DECODE_CHARS.length)];
+      }
+      el.textContent = out;
+      if(revealedCount >= len){ clearInterval(timer); el.textContent = finalText; }
+    }, 32);
+  }, delay);
+}
+
 function render(){
   renderTabs();
   renderManifestStats();
   const el = document.getElementById('content');
   el.innerHTML = activeView === 'overview' ? renderOverview() : renderDayView(activeView);
   attachCardEvents();
+  if(!bootDecodeDone && !reduceMotionMQ.matches){
+    bootDecodeDone = true;
+    document.querySelectorAll('.card-name-text').forEach((nameEl, i) => {
+      decodeReveal(nameEl, nameEl.textContent, 550, Math.min(i,10)*70);
+    });
+  }
 }
 
 const reduceMotionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -943,13 +1029,13 @@ function attachCardTilt(card){
     const ry = (px - 0.5) * 18;
     card.classList.remove('tilt-reset');
     card.classList.add('tilt-active');
-    card.style.transform = `perspective(600px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(1.025)`;
+    card.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(1.03)`;
   }
   function resetTilt(){
     active = false;
     card.classList.remove('tilt-active');
     card.classList.add('tilt-reset');
-    card.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg) scale(1)';
+    card.style.transform = 'rotateX(0deg) rotateY(0deg) scale(1)';
   }
   // mouse: acompanha o cursor em hover
   card.addEventListener('pointermove', e => {
