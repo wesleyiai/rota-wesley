@@ -168,9 +168,18 @@ input,textarea{font-family:inherit;}
   padding:14px 16px;
   margin-bottom:10px;
   box-shadow:var(--shadow);
-  transition:border-color .15s ease, box-shadow .15s ease;
+  transition:border-color .15s ease, box-shadow .2s ease, transform .12s ease;
+  transform:perspective(700px) rotateX(0deg) rotateY(0deg);
+  transform-style:preserve-3d;
+  will-change:transform;
 }
-.card:hover{border-color:var(--border-strong);border-left-color:var(--accent);box-shadow:0 2px 6px rgba(12,18,32,.06), 0 10px 24px rgba(12,18,32,.08);}
+.card:hover{border-color:var(--border-strong);border-left-color:var(--accent);box-shadow:0 6px 16px rgba(12,18,32,.08), 0 16px 32px rgba(10,102,255,.10);}
+.card::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%), rgba(10,102,255,.09), transparent 62%);
+  opacity:0;transition:opacity .25s ease;
+}
+.card:hover::after{opacity:1;}
 .route-line .card::before{
   content:attr(data-n);
   position:absolute;left:-30px;top:16px;width:22px;height:22px;
@@ -180,7 +189,12 @@ input,textarea{font-family:inherit;}
   font-family:'Plex Mono';font-size:10.5px;font-weight:600;
 }
 .card.visited{border-left-color:var(--good);border-color:var(--good-tint);}
-.card.visited::before{background:var(--good);border-color:var(--good);color:#fff;box-shadow:0 0 0 3px var(--good-tint);}
+.card.visited::before{background:var(--good);border-color:var(--good);color:#fff;animation:markerPing 1.4s ease-out 1;}
+@keyframes markerPing{
+  0%{box-shadow:0 0 0 3px var(--good-tint);}
+  40%{box-shadow:0 0 0 9px rgba(23,163,74,.22);}
+  100%{box-shadow:0 0 0 3px var(--good-tint);}
+}
 
 .card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
 .card-name{font-weight:700;font-size:18px;line-height:1.28;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -246,20 +260,39 @@ input,textarea{font-family:inherit;}
   font-family:'Plex Mono';font-weight:600;font-size:13px;letter-spacing:.02em;
   color:var(--good);background:var(--good-tint);border-radius:var(--radius-tag);
   padding:8px 13px;display:inline-flex;gap:6px;align-items:center;
+  transform-origin:left center;
+  animation:stampDeploy .5s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes stampDeploy{
+  0%{opacity:0;transform:perspective(400px) rotateX(-85deg) scale(.85);}
+  60%{opacity:1;transform:perspective(400px) rotateX(10deg) scale(1.04);}
+  100%{opacity:1;transform:perspective(400px) rotateX(0deg) scale(1);}
 }
 
 .log-form{
-  display:none;margin-top:10px;padding:14px;background:var(--surface-2);border-radius:var(--radius);
-  gap:12px;grid-template-columns:1fr 1fr;
+  display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .4s cubic-bezier(.22,.9,.25,1);
 }
-.log-form.open{display:grid;}
+.log-form.open{grid-template-rows:1fr;margin-top:10px;}
+.log-form-inner{
+  overflow:hidden;min-height:0;
+  transform:perspective(900px) rotateX(-88deg);transform-origin:top center;
+  opacity:0;
+  transition:transform .42s cubic-bezier(.25,1.2,.3,1), opacity .3s ease;
+}
+.log-form.open .log-form-inner{transform:perspective(900px) rotateX(0deg);opacity:1;}
+.log-form-grid{
+  padding:14px;background:var(--surface-2);border-radius:var(--radius);
+  display:grid;gap:12px;grid-template-columns:1fr 1fr;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 1px 2px rgba(12,18,32,.04);
+}
 .field{display:flex;flex-direction:column;gap:5px;}
 .field label{font-family:'Plex Mono';font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
 .field input,.field textarea{
   border:1px solid var(--border);border-radius:var(--radius);padding:10px 11px;font-size:16px;background:var(--surface);color:var(--ink);min-height:44px;
 }
 .field.notes{grid-column:1/-1;}
-.log-form button[type=submit]{grid-column:1/-1;}
+.log-form-grid button[type=submit]{grid-column:1/-1;}
 
 .history{margin-top:11px;font-size:14px;}
 .history summary{cursor:pointer;color:var(--ink-soft);font-family:'Plex Mono';font-size:12.5px;list-style:none;padding:5px 0;}
@@ -364,7 +397,9 @@ input,textarea{font-family:inherit;}
   .manifest-stats{grid-template-columns:repeat(2,1fr);}
   .card-top{flex-direction:column;}
   .card-cod{align-self:flex-end;margin-top:-20px;}
-  .log-form{grid-template-columns:1fr;}
+  .log-form-grid{grid-template-columns:1fr;}
+  .card{transform:none !important;}
+  .card::after{display:none;}
   .barrow{grid-template-columns:1fr auto;}
   .modal-backdrop{padding:0;align-items:flex-end;}
   .modal-box{
@@ -782,10 +817,14 @@ function cardHtml(c, n){
       <button class="btn" data-action="toggle-log">Registrar compra</button>
     </div>
     <form class="log-form" data-form>
-      <div class="field date"><label>Data</label><input type="date" name="date" value="${todayISO()}" required></div>
-      <div class="field value"><label>Valor (R$)</label><input type="number" name="value" step="0.01" min="0" placeholder="0,00" required></div>
-      <div class="field notes"><label>Obs. (opcional)</label><input type="text" name="notes" placeholder="ex: pedido de reposição"></div>
-      <button class="btn primary" type="submit">Salvar</button>
+      <div class="log-form-inner">
+        <div class="log-form-grid">
+          <div class="field date"><label>Data</label><input type="date" name="date" value="${todayISO()}" required></div>
+          <div class="field value"><label>Valor (R$)</label><input type="number" name="value" step="0.01" min="0" placeholder="0,00" required></div>
+          <div class="field notes"><label>Obs. (opcional)</label><input type="text" name="notes" placeholder="ex: pedido de reposição"></div>
+          <button class="btn primary" type="submit">Salvar</button>
+        </div>
+      </div>
     </form>
     <details class="history"><summary>Histórico de compras (${hist.length})</summary>${histHtml}</details>
   </div>`;
@@ -880,8 +919,28 @@ function render(){
   attachCardEvents();
 }
 
+const canTiltMQ = window.matchMedia('(hover:hover) and (pointer:fine)');
+const reduceMotionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+function attachCardTilt(card){
+  if(!canTiltMQ.matches || reduceMotionMQ.matches) return;
+  card.addEventListener('pointermove', e => {
+    const r = card.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    card.style.setProperty('--mx', (px*100).toFixed(1)+'%');
+    card.style.setProperty('--my', (py*100).toFixed(1)+'%');
+    const rx = (0.5 - py) * 6;
+    const ry = (px - 0.5) * 6;
+    card.style.transform = `perspective(700px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+  });
+  card.addEventListener('pointerleave', () => {
+    card.style.transform = 'perspective(700px) rotateX(0deg) rotateY(0deg)';
+  });
+}
+
 function attachCardEvents(){
   document.querySelectorAll('.card').forEach(card => {
+    attachCardTilt(card);
     const cod = card.dataset.cod;
     const visitBtn = card.querySelector('[data-action="visit"]');
     const unvisitBtn = card.querySelector('[data-action="unvisit"]');
