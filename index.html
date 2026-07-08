@@ -236,21 +236,16 @@ input,textarea{font-family:inherit;}
 .last-visit.never{color:var(--ink-faint);}
 .freq-row{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);margin-left:auto;}
 .freq-row span{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
-.note-box{
-  margin-top:8px;padding:9px 12px;
-  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
+.badge.note-chip{
+  cursor:pointer;background:var(--surface);color:var(--ink-faint);border:1px dashed var(--border-strong);
 }
-.note-box.has-note{background:var(--warn-tint);border-color:rgba(217,119,6,.28);}
-.note-box label{display:flex;flex-direction:column;gap:5px;}
-.note-box span{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
-.note-box.has-note span{color:var(--warn);}
-.note-input{
-  width:100%;border:1px solid var(--border);border-radius:var(--radius);
-  padding:7px 9px;font-family:'Plex Sans',system-ui,sans-serif;font-size:13.5px;color:var(--ink);
-  background:var(--surface);resize:vertical;min-height:38px;
+.badge.note-chip:hover{border-color:var(--accent);color:var(--accent-deep);}
+.badge.note-chip.has-note{background:var(--warn-tint);color:var(--warn);border:1px solid rgba(217,119,6,.28);}
+.modal-box .field textarea{
+  width:100%;padding:11px 13px;font-size:15px;font-family:inherit;border:1px solid var(--border);border-radius:var(--radius);
+  min-height:96px;resize:vertical;background:var(--surface);color:var(--ink);
 }
-.note-input:focus{outline:none;border-color:var(--accent);}
-.badge.note{background:rgba(0,184,196,.12);color:var(--accent-cyan);border-color:rgba(0,184,196,.28);}
+.modal-box .field textarea:focus{outline:none;border-color:var(--accent);}
 .freq-select{
   border:1px solid var(--border);border-radius:var(--radius-tag);background:var(--surface);
   color:var(--ink);font-size:13px;font-weight:600;font-family:inherit;padding:6px 8px;min-height:32px;
@@ -511,6 +506,21 @@ input,textarea{font-family:inherit;}
       <button class="btn ghost" id="btnCloseSync">Fechar</button>
     </div>
     <div class="modal-status" id="syncModalStatus"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="noteModal">
+  <div class="modal-box">
+    <h3 id="noteModalTitle">Anotação</h3>
+    <div class="field">
+      <label>Observação</label>
+      <textarea id="noteModalInput" rows="4" placeholder="ex: pedir pra passar terça de manhã"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" id="btnSaveNote">Salvar</button>
+      <button class="btn ghost" id="btnRemoveNote">Remover anotação</button>
+      <button class="btn ghost" id="btnCloseNote">Fechar</button>
+    </div>
   </div>
 </div>
 
@@ -870,7 +880,7 @@ function cardHtml(c, n){
       </div>
       <div class="card-cod mono">lim. ${money(c.l).replace('R$ ','')}</div>
     </div>
-    <div class="badges">${badgesFor(c)}${note ? `<span class="badge note">📝 Nota</span>` : ''}</div>
+    <div class="badges">${badgesFor(c)}<span class="badge note-chip ${note ? 'has-note' : ''}" data-action="open-note">📝 ${note ? 'Nota' : 'Anotar'}</span></div>
     <div class="card-info">
       <div class="row">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -898,12 +908,6 @@ function cardHtml(c, n){
           <option value="" ${!freq ? 'selected' : ''}>Definir intervalo</option>
           ${Object.entries(FREQ_LABELS).map(([v,l]) => `<option value="${v}" ${freq===v?'selected':''}>${l}</option>`).join('')}
         </select>
-      </label>
-    </div>
-    <div class="note-box ${note ? 'has-note' : ''}">
-      <label>
-        <span>📝 Anotação</span>
-        <textarea class="note-input" data-action="note" rows="2" placeholder="ex: pedir pra passar terça de manhã, cliente prefere de tarde...">${escapeHtml(note)}</textarea>
       </label>
     </div>
     <div class="card-foot">
@@ -1080,7 +1084,7 @@ function attachCardEvents(){
     const unvisitBtn = card.querySelector('[data-action="unvisit"]');
     const toggleBtn = card.querySelector('[data-action="toggle-log"]');
     const freqSelect = card.querySelector('[data-action="freq"]');
-    const noteInput = card.querySelector('[data-action="note"]');
+    const noteTrigger = card.querySelector('[data-action="open-note"]');
     const form = card.querySelector('[data-form]');
 
     if(visitBtn) visitBtn.addEventListener('click', () => {
@@ -1094,12 +1098,7 @@ function attachCardEvents(){
     if(unvisitBtn) unvisitBtn.addEventListener('click', () => {
       delete state.visited[cod]; saveState(); render();
     });
-    if(noteInput) noteInput.addEventListener('blur', () => {
-      const val = noteInput.value.trim();
-      const had = !!state.notes[cod];
-      if(val) state.notes[cod] = val; else delete state.notes[cod];
-      if(val || had){ saveState(); showToast(val ? 'Anotação salva.' : 'Anotação removida.'); render(); }
-    });
+    if(noteTrigger) noteTrigger.addEventListener('click', () => openNoteModal(cod));
     if(toggleBtn) toggleBtn.addEventListener('click', () => {
       form.classList.toggle('open');
     });
@@ -1172,6 +1171,34 @@ document.getElementById('btnNewCycle').addEventListener('click', () => {
     showToast('Novo ciclo iniciado.');
   }
 });
+
+/* ---------- Note modal wiring ---------- */
+const noteModal = document.getElementById('noteModal');
+let noteModalCod = null;
+function openNoteModal(cod){
+  noteModalCod = cod;
+  const c = CLIENTS.find(x => String(x.c) === String(cod));
+  document.getElementById('noteModalTitle').textContent = c ? c.f : 'Anotação';
+  document.getElementById('noteModalInput').value = state.notes[cod] || '';
+  noteModal.classList.add('open');
+  setTimeout(() => document.getElementById('noteModalInput').focus(), 50);
+}
+function closeNoteModal(){ noteModal.classList.remove('open'); noteModalCod = null; }
+function saveNoteModal(){
+  const val = document.getElementById('noteModalInput').value.trim();
+  if(val) state.notes[noteModalCod] = val; else delete state.notes[noteModalCod];
+  saveState();
+  showToast(val ? 'Anotação salva.' : 'Anotação removida.');
+  closeNoteModal();
+  render();
+}
+document.getElementById('btnSaveNote').addEventListener('click', saveNoteModal);
+document.getElementById('btnRemoveNote').addEventListener('click', () => {
+  document.getElementById('noteModalInput').value = '';
+  saveNoteModal();
+});
+document.getElementById('btnCloseNote').addEventListener('click', closeNoteModal);
+noteModal.addEventListener('click', e => { if(e.target === noteModal) closeNoteModal(); });
 
 /* ---------- Sync modal wiring ---------- */
 const syncModal = document.getElementById('syncModal');
