@@ -153,6 +153,7 @@ input,textarea{font-family:inherit;}
 .search-row input[type=search]::placeholder{color:var(--ink-faint);}
 
 /* ---------- Day panel ---------- */
+.day-head-actions{display:flex;gap:8px;flex-wrap:wrap;}
 .day-head{
   padding:14px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
 }
@@ -183,6 +184,9 @@ input,textarea{font-family:inherit;}
     0 20px 32px -16px rgba(10,102,255,.16);
   transition:border-color .15s ease, box-shadow .2s ease;
 }
+.card.status-crit{border-left-color:var(--crit);}
+.card.status-warn{border-left-color:var(--warn);}
+.card.status-good{border-left-color:var(--good);}
 .card:hover{border-color:var(--border-strong);border-left-color:var(--accent);box-shadow:
     0 1px 0 rgba(255,255,255,.75) inset,
     0 -1px 0 rgba(12,18,32,.12) inset,
@@ -226,16 +230,19 @@ input,textarea{font-family:inherit;}
 .card-info a{color:var(--ink);text-decoration:none;border-bottom:1px solid transparent;}
 .card-info a:hover{color:var(--accent);border-color:var(--accent-tint);}
 
-.ops-row{
-  display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;
-  margin-top:11px;padding:10px 12px;
-  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
+.stat-strip{
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  margin-top:11px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;
 }
-.last-visit{display:inline-flex;align-items:center;gap:6px;font-family:'Plex Mono';font-size:12px;color:var(--ink-soft);}
-.last-visit svg{color:var(--ink-faint);flex:0 0 auto;}
-.last-visit.never{color:var(--ink-faint);}
-.freq-row{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);margin-left:auto;}
-.freq-row span{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+.stat-item{background:var(--surface-2);padding:8px 10px;display:flex;flex-direction:column;gap:2px;}
+.stat-label{font-family:'Plex Mono';font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
+.stat-value{font-family:'Plex Mono';font-size:13px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;}
+.stat-value.muted{color:var(--ink-faint);font-weight:500;}
+.stat-item.warn .stat-value{color:var(--warn);}
+.stat-item.crit .stat-value{color:var(--crit);}
+.stat-item.good .stat-value{color:var(--good);}
+.stat-item.freq-item{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;flex-direction:row;gap:8px;}
 .badge.note-chip{
   cursor:pointer;background:var(--surface);color:var(--ink-faint);border:1px dashed var(--border-strong);
 }
@@ -597,6 +604,13 @@ function money(n){
   return 'R$ ' + Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function daysSince(date){ return Math.floor((new Date() - date) / 86400000); }
+function purchaseStatusClass(days, freq){
+  if(days == null || !freq) return '';
+  const target = Number(freq);
+  if(days >= target * 1.5) return 'crit';
+  if(days >= target) return 'warn';
+  return 'good';
+}
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function waMessage(fantasia){
@@ -613,6 +627,7 @@ function waHrefFromPhone(phone, fantasia){
 let state = loadState();
 let activeView = 'overview';
 let searchTerm = '';
+let dayOrderMode = {};
 
 /* ---------- GitHub sync ---------- */
 const SYNC_KEY = 'rotaWesley271_sync_v1';
@@ -734,6 +749,34 @@ function renderSyncBadge(){
 
 function clientsForDay(day){ return CLIENTS.filter(c => c.day === day).sort((a,b)=>a.seq-b.seq); }
 
+function haversineKm(lat1, lon1, lat2, lon2){
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function nearestNeighborOrder(list){
+  const withCoords = list.filter(c => c.lat != null && c.lon != null);
+  const withoutCoords = list.filter(c => c.lat == null || c.lon == null);
+  if(withCoords.length < 2) return list;
+  const ordered = [withCoords[0]];
+  const remaining = withCoords.slice(1);
+  while(remaining.length){
+    const last = ordered[ordered.length - 1];
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((c, i) => {
+      const d = haversineKm(last.lat, last.lon, c.lat, c.lon);
+      if(d < bestDist){ bestDist = d; bestIdx = i; }
+    });
+    ordered.push(remaining.splice(bestIdx, 1)[0]);
+  }
+  return ordered.concat(withoutCoords);
+}
+function orderedClientsForDay(day){
+  const base = clientsForDay(day);
+  return dayOrderMode[day] === 'optimized' ? nearestNeighborOrder(base) : base;
+}
 function networkKey(f){
   const norm = f.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if(/^farmacias?\s+edson\b/.test(norm)) return 'farmácia edson';
@@ -755,7 +798,7 @@ function networkGroups(){
 }
 
 function dayRouteUrl(day){
-  const pts = clientsForDay(day).filter(c => c.lat != null);
+  const pts = orderedClientsForDay(day).filter(c => c.lat != null);
   if(pts.length < 2) return null;
   const origin = `${pts[0].lat},${pts[0].lon}`;
   const dest = `${pts[pts.length-1].lat},${pts[pts.length-1].lon}`;
@@ -863,8 +906,11 @@ function cardHtml(c, n){
   const histHtml = hist.length
     ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
     : `<div class="hist-empty">Nenhuma compra registrada ainda.</div>`;
+  const daysSincePurchase = hist.length ? daysSince(parseISODateLocal(hist[0].date)) : null;
+  const pStatus = purchaseStatusClass(daysSincePurchase, freq);
+  const cardStatus = c.bl ? 'crit' : pStatus;
   return `
-  <div class="card ${visited?'visited':''}" data-cod="${c.c}" data-n="${n}" style="--float-delay:${(-(n%5)*0.66).toFixed(2)}s">
+  <div class="card ${visited?'visited':''} ${cardStatus ? 'status-'+cardStatus : ''}" data-cod="${c.c}" data-n="${n}" style="--float-delay:${(-(n%5)*0.66).toFixed(2)}s">
     <div class="card-float">
     <div class="card-top">
       <div>
@@ -890,13 +936,17 @@ function cardHtml(c, n){
           ${escapeHtml(ct.name)}
         </a>`).join('')}
     </div>` : ''}
-    <div class="ops-row">
-      <div class="last-visit ${lastVisit ? '' : 'never'}">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
-        ${lastVisit ? `Última visita: ${fmtDateBR(lastVisit)}` : 'Ainda sem visita registrada'}
+    <div class="stat-strip">
+      <div class="stat-item">
+        <span class="stat-label">Última visita</span>
+        <span class="stat-value ${lastVisit ? '' : 'muted'}">${lastVisit ? fmtDateBR(lastVisit) : 'sem registro'}</span>
       </div>
-      <label class="freq-row">
-        <span>Atendimento</span>
+      <div class="stat-item ${pStatus}">
+        <span class="stat-label">Última compra</span>
+        <span class="stat-value ${daysSincePurchase == null ? 'muted' : ''}">${daysSincePurchase == null ? 'sem registro' : `há ${daysSincePurchase}d`}</span>
+      </div>
+      <label class="stat-item freq-item">
+        <span class="stat-label">Atendimento</span>
         <select class="freq-select" data-action="freq">
           <option value="" ${!freq ? 'selected' : ''}>Definir intervalo</option>
           ${Object.entries(FREQ_LABELS).map(([v,l]) => `<option value="${v}" ${freq===v?'selected':''}>${l}</option>`).join('')}
@@ -930,16 +980,22 @@ function cardHtml(c, n){
 }
 
 function renderDayView(day){
-  const list = clientsForDay(day).filter(matchesSearch);
-  const total = clientsForDay(day).length;
+  const full = orderedClientsForDay(day);
+  const list = full.filter(matchesSearch);
+  const total = full.length;
   const route = dayRouteUrl(day);
+  const isOptimized = dayOrderMode[day] === 'optimized';
+  const canOptimize = full.filter(c => c.lat != null).length >= 2;
   return `
     <div class="day-head">
       <div>
         <h2>${weekdayOf(day)} <span class="region">· ${DAYS[day].name}</span></h2>
-        <div class="meta">Semana ${weekOf(day)} · ${DAYS[day].region} — ${total} parada${total!==1?'s':''} · ordem sugerida por proximidade${route ? '' : ' (sem localização suficiente para calcular)'}</div>
+        <div class="meta">Semana ${weekOf(day)} · ${DAYS[day].region} — ${total} parada${total!==1?'s':''} · ${isOptimized ? 'ordem otimizada por proximidade' : 'ordem manual'}${route ? '' : ' (sem localização suficiente para calcular)'}</div>
       </div>
-      ${route ? `<a class="btn primary" href="${route.url}" target="_blank" rel="noopener">Abrir rota do dia no Maps (${route.count} paradas)</a>` : ''}
+      <div class="day-head-actions">
+        ${canOptimize ? `<button class="btn" data-action="toggle-order" data-day="${day}">${isOptimized ? '↺ Ordem manual' : '🧭 Sugerir ordem otimizada'}</button>` : ''}
+        ${route ? `<a class="btn primary" href="${route.url}" target="_blank" rel="noopener">Abrir rota do dia no Maps (${route.count} paradas)</a>` : ''}
+      </div>
     </div>
     <div class="route-line">${list.map((c,i)=>cardHtml(c,i+1)).join('') || '<div class="empty-note">Nenhum cliente encontrado para essa busca.</div>'}</div>
   `;
@@ -1042,6 +1098,14 @@ function render(){
   else el.innerHTML = renderDayView(activeView);
   attachCardEvents();
   if(activeView === 'networks') attachNetworkEvents();
+  if(typeof activeView === 'number') attachDayHeadEvents(activeView);
+}
+function attachDayHeadEvents(day){
+  const btn = document.querySelector('[data-action="toggle-order"]');
+  if(btn) btn.addEventListener('click', () => {
+    dayOrderMode[day] = dayOrderMode[day] === 'optimized' ? 'manual' : 'optimized';
+    render();
+  });
 }
 
 function attachCardEvents(){
