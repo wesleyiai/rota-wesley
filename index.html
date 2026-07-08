@@ -797,14 +797,6 @@ function visitedCountDay(day){
 function visitedCountTotal(){
   return CLIENTS.filter(c => state.visited[c.c]).length;
 }
-function blockedList(){ return CLIENTS.filter(c => c.bl); }
-function staleList(){
-  return CLIENTS.filter(c => {
-    const d = parseBRDate(c.d);
-    return d && daysSince(d) > 90;
-  }).sort((a,b) => parseBRDate(a.d) - parseBRDate(b.d));
-}
-
 function renderTabs(){
   const el = document.getElementById('routeScroll');
   let html = `<button class="daytab overview ${activeView==='overview'?'active':''}" data-view="overview">
@@ -959,8 +951,6 @@ function matchesSearch(c){
 }
 
 function renderOverview(){
-  const blocked = blockedList();
-  const stale = staleList();
   const pct = Math.round(visitedCountTotal()/CLIENTS.length*100);
   const barrows = [];
   for(let d=1; d<=9; d++){
@@ -991,28 +981,6 @@ function renderOverview(){
             <div class="bartrack"><div class="barfill" style="width:${Math.round(r.total/maxVal*100)}%"></div></div>
             <div class="amt mono">${r.total>0 ? money(r.total) : '—'}</div>
           </div>`).join('')}
-      </div>
-    </div>
-
-    <div class="ov-section">
-      <h3>Bloqueados por inadimplência (${blocked.length})</h3>
-      <div class="alert-list">
-        ${blocked.length ? blocked.map(c => `
-          <div class="alert-item">
-            <div><div class="who">${escapeHtml(c.f)}</div><div class="where">${escapeHtml(c.b)} · ${escapeHtml(c.ci)}</div></div>
-            <div class="go">${dayLabelShort(c.day)}</div>
-          </div>`).join('') : '<div class="empty-note">Nenhum cliente bloqueado. 🎉</div>'}
-      </div>
-    </div>
-
-    <div class="ov-section">
-      <h3>Sem comprar há mais de 90 dias (${stale.length})</h3>
-      <div class="alert-list">
-        ${stale.length ? stale.map(c => `
-          <div class="alert-item">
-            <div><div class="who">${escapeHtml(c.f)}</div><div class="where">${escapeHtml(c.b)} · última compra ${c.d}</div></div>
-            <div class="go">${dayLabelShort(c.day)}</div>
-          </div>`).join('') : '<div class="empty-note">Todo mundo comprou nos últimos 90 dias.</div>'}
       </div>
     </div>
   `;
