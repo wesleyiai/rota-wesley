@@ -537,6 +537,7 @@ input,textarea{font-family:inherit;}
   <div class="foot-controls">
     <div class="note">Os dados ficam salvos no navegador deste aparelho (não sincronizam entre celular e computador). Exporte um backup de vez em quando.</div>
     <div class="foot-btns">
+      <button class="btn primary" id="btnSendReport">📤 Enviar relatório</button>
       <button class="btn" id="btnExport">Exportar backup</button>
       <button class="btn" id="btnImport">Importar backup</button>
       <input type="file" id="fileImport" accept="application/json" style="display:none;">
@@ -1213,6 +1214,337 @@ document.getElementById('btnClearSync').addEventListener('click', () => {
     showToast('Sincronização removida deste aparelho.');
   }
 });
+
+/* ---------- Relatório em PDF (imagem embutida) ---------- */
+const REPORT_PAGE_W = 595.28, REPORT_PAGE_H = 841.89, REPORT_SCALE = 2.5;
+
+function wrapJpegAsPdf(jpegBytes, imgW, imgH, pageWPt, pageHPt){
+  const enc = new TextEncoder();
+  const chunks = [];
+  let offset = 0;
+  const offsets = {};
+  function push(strOrBytes){
+    const bytes = typeof strOrBytes === 'string' ? enc.encode(strOrBytes) : strOrBytes;
+    chunks.push(bytes);
+    offset += bytes.length;
+  }
+  push('%PDF-1.4\n');
+  offsets[1] = offset;
+  push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  offsets[2] = offset;
+  push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  offsets[3] = offset;
+  push('3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> /ProcSet [/PDF /ImageC] >> /MediaBox [0 0 ' + pageWPt + ' ' + pageHPt + '] /Contents 5 0 R >>\nendobj\n');
+  offsets[4] = offset;
+  push('4 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + imgW + ' /Height ' + imgH + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpegBytes.length + ' >>\nstream\n');
+  push(jpegBytes);
+  push('\nendstream\nendobj\n');
+  offsets[5] = offset;
+  const content = 'q\n' + pageWPt + ' 0 0 ' + pageHPt + ' 0 0 cm\n/Im0 Do\nQ';
+  push('5 0 obj\n<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream\nendobj\n');
+  const xrefOffset = offset;
+  let xref = 'xref\n0 6\n0000000000 65535 f \n';
+  for(let i=1;i<=5;i++) xref += String(offsets[i]).padStart(10,'0') + ' 00000 n \n';
+  push(xref);
+  push('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xrefOffset + '\n%%EOF');
+  const total = chunks.reduce((a,c)=>a+c.length,0);
+  const out = new Uint8Array(total);
+  let p = 0;
+  for(const c of chunks){ out.set(c, p); p += c.length; }
+  return out;
+}
+
+function roundRectPath(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+function parseISODateLocal(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function truncateText(ctx, text, maxWidth){
+  if(ctx.measureText(text).width <= maxWidth) return text;
+  let lo = 0, hi = text.length;
+  while(lo < hi){
+    const mid = Math.ceil((lo+hi)/2);
+    const candidate = text.slice(0, mid) + '…';
+    if(ctx.measureText(candidate).width <= maxWidth) lo = mid; else hi = mid-1;
+  }
+  return text.slice(0, lo) + '…';
+}
+
+function fmtDateLocal(d){
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
+
+function drawReportCard(ctx, x, y, w, h, accentColor, value, label, sub){
+  roundRectPath(ctx, x, y, w, h, 6);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#D6DEE8';
+  ctx.stroke();
+  ctx.fillStyle = accentColor;
+  roundRectPath(ctx, x, y, 4, h, 2);
+  ctx.fill();
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 21px 'Plex Sans'";
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(value, x + 14, y + 32);
+  ctx.fillStyle = '#8B96A2';
+  ctx.font = "600 8.5px 'Plex Mono'";
+  ctx.fillText(label.toUpperCase(), x + 14, y + 48);
+  if(sub){
+    ctx.fillStyle = accentColor;
+    ctx.font = "600 10px 'Plex Sans'";
+    ctx.fillText(sub, x + 14, y + 63);
+  }
+}
+
+function drawProgressRing(ctx, cx, cy, radius, thickness, pct, color){
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.strokeStyle = '#E5EBF2';
+  ctx.lineWidth = thickness;
+  ctx.stroke();
+  const angle = Math.max(0, Math.min(1, pct)) * Math.PI * 2;
+  if(angle > 0){
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI/2, -Math.PI/2 + angle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = thickness;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 30px 'Plex Sans'";
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(pct*100) + '%', cx, cy + 10);
+  ctx.fillStyle = '#8B96A2';
+  ctx.font = "600 8px 'Plex Mono'";
+  ctx.fillText('DA ROTA', cx, cy + 26);
+  ctx.textAlign = 'left';
+}
+
+function drawCompareBar(ctx, x, y, w, label, count, total, color){
+  const pct = total > 0 ? count/total : 0;
+  ctx.fillStyle = '#54606D';
+  ctx.font = "600 10.5px 'Plex Sans'";
+  ctx.fillText(label, x, y);
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 10.5px 'Plex Sans'";
+  ctx.textAlign = 'right';
+  ctx.fillText(count + ' · ' + Math.round(pct*100) + '%', x + w, y);
+  ctx.textAlign = 'left';
+  const barY = y + 7, barH = 9;
+  roundRectPath(ctx, x, barY, w, barH, 4.5);
+  ctx.fillStyle = '#E5EBF2';
+  ctx.fill();
+  const fillW = Math.max(barH, w * pct);
+  if(pct > 0){
+    roundRectPath(ctx, x, barY, fillW, barH, 4.5);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+}
+
+async function drawReportCanvas(){
+  await (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve());
+  const S = REPORT_SCALE;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(REPORT_PAGE_W * S);
+  canvas.height = Math.round(REPORT_PAGE_H * S);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(S, S);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, REPORT_PAGE_W, REPORT_PAGE_H);
+
+  const margin = 40;
+  const contentW = REPORT_PAGE_W - margin*2;
+
+  const total = CLIENTS.length;
+  const visited = visitedCountTotal();
+  const remaining = remainingCountTotal();
+  const purchased = purchasedCountInCycle();
+  const revenue = totalInCycle();
+  const pctVisited = total > 0 ? visited/total : 0;
+
+  const start = parseISODateLocal(state.cycleStart);
+  const cycleEnd = new Date(start.getFullYear(), start.getMonth()+1, 0);
+  const now = new Date();
+
+  // header band
+  ctx.fillStyle = '#080D18';
+  ctx.fillRect(0, 0, REPORT_PAGE_W, 118);
+  const grad = ctx.createLinearGradient(0, 118, REPORT_PAGE_W, 118);
+  grad.addColorStop(0, '#0A66FF');
+  grad.addColorStop(1, '#00B8C4');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 118, REPORT_PAGE_W, 4);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = "700 26px 'Plex Sans'";
+  ctx.fillText('Relatório de Rota', margin, 52);
+  ctx.fillStyle = '#00B8C4';
+  ctx.font = "600 11px 'Plex Mono'";
+  ctx.fillText('RCA 271 · DISTRIBUIDORA TIO LUIZ', margin, 72);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.font = "600 10px 'Plex Mono'";
+  ctx.fillText('CICLO: ' + fmtDateLocal(start) + ' A ' + fmtDateLocal(cycleEnd), REPORT_PAGE_W - margin, 50);
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  ctx.font = "400 9px 'Plex Mono'";
+  ctx.fillText('Gerado em ' + fmtDateLocal(now) + ' às ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'), REPORT_PAGE_W - margin, 66);
+  ctx.textAlign = 'left';
+
+  // KPI cards
+  let y = 142;
+  const cardH = 74, gap = 12;
+  const cardW = (contentW - gap*3) / 4;
+  const cards = [
+    { value: String(total), label: 'Total de clientes', sub: null, color: '#0A66FF' },
+    { value: String(visited), label: 'Visitados', sub: Math.round(pctVisited*100) + '% da rota', color: '#17A34A' },
+    { value: String(remaining), label: 'Faltam visitar', sub: Math.round((total>0?remaining/total:0)*100) + '% da rota', color: '#D97706' },
+    { value: String(purchased), label: 'Compraram', sub: Math.round((total>0?purchased/total:0)*100) + '% da rota', color: '#00B8C4' },
+  ];
+  cards.forEach((c, i) => {
+    drawReportCard(ctx, margin + i*(cardW+gap), y, cardW, cardH, c.color, c.value, c.label, c.sub);
+  });
+
+  // donut + comparison bars
+  y += cardH + 30;
+  const donutCx = margin + 66, donutCy = y + 62;
+  drawProgressRing(ctx, donutCx, donutCy, 52, 15, pctVisited, '#0A66FF');
+
+  const barsX = margin + 160;
+  const barsW = contentW - 160 - 10;
+  let by = y + 18;
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 12px 'Plex Sans'";
+  ctx.fillText('Comparativo da carteira', barsX, by);
+  by += 24;
+  drawCompareBar(ctx, barsX, by, barsW, 'Visitados', visited, total, '#17A34A');
+  by += 34;
+  drawCompareBar(ctx, barsX, by, barsW, 'Compraram', purchased, total, '#00B8C4');
+  by += 34;
+  drawCompareBar(ctx, barsX, by, barsW, 'Faltam visitar', remaining, total, '#D97706');
+
+  y += 150;
+
+  // revenue callout band
+  roundRectPath(ctx, margin, y, contentW, 56, 6);
+  ctx.fillStyle = '#E4EDFF';
+  ctx.fill();
+  ctx.fillStyle = '#0847BD';
+  ctx.font = "600 10px 'Plex Mono'";
+  ctx.fillText('FATURADO NO CICLO', margin + 18, y + 24);
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 24px 'Plex Sans'";
+  ctx.fillText(money(revenue), margin + 18, y + 46);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#54606D';
+  ctx.font = "600 10px 'Plex Sans'";
+  const avgTicket = purchased > 0 ? revenue/purchased : 0;
+  ctx.fillText('Ticket médio: ' + money(avgTicket), margin + contentW - 18, y + 34);
+  ctx.textAlign = 'left';
+
+  y += 76;
+
+  // revenue by route day
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 13px 'Plex Sans'";
+  ctx.fillText('Faturamento por dia da rota', margin, y);
+  y += 18;
+  const dayTotals = [];
+  for(let d=1; d<=9; d++) dayTotals.push({ d, total: dayTotal(d) });
+  const maxDayVal = Math.max(1, ...dayTotals.map(r=>r.total));
+  const rowH = 19;
+  const labelW = 172, amtW = 75;
+  const trackW = contentW - labelW - amtW;
+  dayTotals.forEach(row => {
+    const ly = y + 12;
+    ctx.fillStyle = '#54606D';
+    ctx.font = "600 9.5px 'Plex Sans'";
+    const dayLabel = truncateText(ctx, weekdayOf(row.d).slice(0,3) + ' · ' + DAYS[row.d].name, labelW - 10);
+    ctx.fillText(dayLabel, margin, ly);
+    const trackX = margin + labelW;
+    roundRectPath(ctx, trackX, y + 3, trackW, 10, 5);
+    ctx.fillStyle = '#E5EBF2';
+    ctx.fill();
+    const fillW = row.total > 0 ? Math.max(10, trackW * (row.total/maxDayVal)) : 0;
+    if(fillW > 0){
+      roundRectPath(ctx, trackX, y + 3, fillW, 10, 5);
+      ctx.fillStyle = '#0A66FF';
+      ctx.fill();
+    }
+    ctx.fillStyle = '#0A0F1C';
+    ctx.font = "600 9.5px 'Plex Mono'";
+    ctx.textAlign = 'right';
+    ctx.fillText(row.total > 0 ? money(row.total) : '—', margin + contentW, ly);
+    ctx.textAlign = 'left';
+    y += rowH;
+  });
+
+  y += 22;
+  ctx.strokeStyle = '#D6DEE8';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(margin, y);
+  ctx.lineTo(margin + contentW, y);
+  ctx.stroke();
+  y += 18;
+  ctx.fillStyle = '#8B96A2';
+  ctx.font = "400 9px 'Plex Mono'";
+  ctx.fillText('Gerado automaticamente pelo app da rota · não substitui o extrato financeiro oficial', margin, y);
+
+  return canvas;
+}
+
+async function buildReportPdfBlob(){
+  const canvas = await drawReportCanvas();
+  const jpegBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  const jpegBuf = await jpegBlob.arrayBuffer();
+  const jpegBytes = new Uint8Array(jpegBuf);
+  const pdfBytes = wrapJpegAsPdf(jpegBytes, canvas.width, canvas.height, REPORT_PAGE_W, REPORT_PAGE_H);
+  return new Blob([pdfBytes], { type: 'application/pdf' });
+}
+
+async function sendReport(){
+  showToast('Gerando relatório…');
+  try{
+    const blob = await buildReportPdfBlob();
+    const fname = 'relatorio-rota-' + todayISO() + '.pdf';
+    const file = new File([blob], fname, { type: 'application/pdf' });
+    const pct = CLIENTS.length > 0 ? Math.round(visitedCountTotal()/CLIENTS.length*100) : 0;
+    const caption = 'Relatório de rota — ' + pct + '% da rota visitada, ' + money(totalInCycle()) + ' faturados no ciclo.';
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: fname, text: caption });
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      showToast('PDF baixado — anexe ele numa conversa do WhatsApp.');
+      window.open('https://wa.me/?text=' + encodeURIComponent(caption + ' (anexa o PDF que acabou de baixar)'), '_blank');
+    }
+  }catch(e){
+    if(e && e.name === 'AbortError') return;
+    console.error(e);
+    showToast('Não deu pra gerar o relatório: ' + e.message);
+  }
+}
+
+document.getElementById('btnSendReport').addEventListener('click', sendReport);
 
 (async function init(){
   if(syncConfig) await pullFromGithub();
