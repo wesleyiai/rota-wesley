@@ -236,6 +236,21 @@ input,textarea{font-family:inherit;}
 .last-visit.never{color:var(--ink-faint);}
 .freq-row{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);margin-left:auto;}
 .freq-row span{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+.note-box{
+  margin-top:8px;padding:9px 12px;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
+}
+.note-box.has-note{background:var(--warn-tint);border-color:rgba(217,119,6,.28);}
+.note-box label{display:flex;flex-direction:column;gap:5px;}
+.note-box span{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+.note-box.has-note span{color:var(--warn);}
+.note-input{
+  width:100%;border:1px solid var(--border);border-radius:var(--radius);
+  padding:7px 9px;font-family:'Plex Sans',system-ui,sans-serif;font-size:13.5px;color:var(--ink);
+  background:var(--surface);resize:vertical;min-height:38px;
+}
+.note-input:focus{outline:none;border-color:var(--accent);}
+.badge.note{background:rgba(0,184,196,.12);color:var(--accent-cyan);border-color:rgba(0,184,196,.28);}
 .freq-select{
   border:1px solid var(--border);border-radius:var(--radius-tag);background:var(--surface);
   color:var(--ink);font-size:13px;font-weight:600;font-family:inherit;padding:6px 8px;min-height:32px;
@@ -548,6 +563,7 @@ const STORE_KEY = "rotaWesley271_v1";
 function normalizeState(s){
   if(!s.freq) s.freq = {};
   if(!s.lastVisit) s.lastVisit = {};
+  if(!s.notes) s.notes = {};
   return s;
 }
 function loadState(){
@@ -839,6 +855,7 @@ function cardHtml(c, n){
   const visited = !!state.visited[c.c];
   const freq = state.freq[c.c] || '';
   const lastVisit = state.lastVisit[c.c];
+  const note = state.notes[c.c] || '';
   const hist = (state.purchases[c.c]||[]).slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
   const histHtml = hist.length
     ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
@@ -853,7 +870,7 @@ function cardHtml(c, n){
       </div>
       <div class="card-cod mono">lim. ${money(c.l).replace('R$ ','')}</div>
     </div>
-    <div class="badges">${badgesFor(c)}</div>
+    <div class="badges">${badgesFor(c)}${note ? `<span class="badge note">📝 Nota</span>` : ''}</div>
     <div class="card-info">
       <div class="row">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -881,6 +898,12 @@ function cardHtml(c, n){
           <option value="" ${!freq ? 'selected' : ''}>Definir intervalo</option>
           ${Object.entries(FREQ_LABELS).map(([v,l]) => `<option value="${v}" ${freq===v?'selected':''}>${l}</option>`).join('')}
         </select>
+      </label>
+    </div>
+    <div class="note-box ${note ? 'has-note' : ''}">
+      <label>
+        <span>📝 Anotação</span>
+        <textarea class="note-input" data-action="note" rows="2" placeholder="ex: pedir pra passar terça de manhã, cliente prefere de tarde...">${escapeHtml(note)}</textarea>
       </label>
     </div>
     <div class="card-foot">
@@ -1057,6 +1080,7 @@ function attachCardEvents(){
     const unvisitBtn = card.querySelector('[data-action="unvisit"]');
     const toggleBtn = card.querySelector('[data-action="toggle-log"]');
     const freqSelect = card.querySelector('[data-action="freq"]');
+    const noteInput = card.querySelector('[data-action="note"]');
     const form = card.querySelector('[data-form]');
 
     if(visitBtn) visitBtn.addEventListener('click', () => {
@@ -1069,6 +1093,12 @@ function attachCardEvents(){
     });
     if(unvisitBtn) unvisitBtn.addEventListener('click', () => {
       delete state.visited[cod]; saveState(); render();
+    });
+    if(noteInput) noteInput.addEventListener('blur', () => {
+      const val = noteInput.value.trim();
+      const had = !!state.notes[cod];
+      if(val) state.notes[cod] = val; else delete state.notes[cod];
+      if(val || had){ saveState(); showToast(val ? 'Anotação salva.' : 'Anotação removida.'); render(); }
     });
     if(toggleBtn) toggleBtn.addEventListener('click', () => {
       form.classList.toggle('open');
