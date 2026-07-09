@@ -342,10 +342,15 @@ input,textarea{font-family:inherit;}
 .ov-tile.warn{border-top-color:var(--warn);}
 .ov-tile.warn .val{color:var(--warn);}
 
-.progress-outer{margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);}
-.progress-bar{height:8px;background:var(--surface-2);border-radius:2px;overflow:hidden;}
-.progress-fill{height:100%;background:linear-gradient(90deg, var(--accent), var(--accent-cyan));border-radius:2px;transition:width .3s ease;}
-.progress-label{display:flex;justify-content:space-between;font-family:'Plex Mono';font-size:13px;color:var(--ink-soft);margin-top:9px;}
+.progress-outer{margin-top:18px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent-cyan);border-radius:var(--radius);padding:16px 16px 14px;box-shadow:var(--shadow);}
+.progress-eyebrow{font-family:'Plex Mono';font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-cyan);}
+.progress-eyebrow::before{content:'</>';margin-right:6px;}
+.progress-bar{position:relative;height:12px;background:var(--surface-2);border-radius:2px;overflow:hidden;margin-top:10px;background-image:repeating-linear-gradient(90deg, var(--border) 0, var(--border) 1px, transparent 1px, transparent 10%);}
+.progress-fill{position:relative;height:100%;background:linear-gradient(90deg, var(--accent), var(--accent-cyan));border-radius:2px;transition:width .5s ease;overflow:hidden;}
+.progress-fill::after{content:'';position:absolute;inset:0;width:40%;background:linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);animation:progressScan 2.4s linear infinite;}
+@keyframes progressScan{0%{transform:translateX(-120%);}100%{transform:translateX(280%);}}
+.progress-label{display:flex;justify-content:space-between;align-items:baseline;font-family:'Plex Mono';font-size:13px;color:var(--ink-soft);margin-top:10px;}
+.progress-label .pct{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;background:linear-gradient(90deg, var(--accent), var(--accent-cyan));-webkit-background-clip:text;background-clip:text;color:transparent;}
 
 .ov-section{margin-top:24px;}
 .ov-section h3{font-size:16px;margin-bottom:10px;font-weight:700;display:flex;align-items:center;}
@@ -1025,8 +1030,9 @@ function renderOverview(){
     </div>
 
     <div class="progress-outer">
+      <div class="progress-eyebrow">Status da rota</div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <div class="progress-label"><span>${visitedCountTotal()} de ${CLIENTS.length} visitadas neste ciclo</span><span>${pct}%</span></div>
+      <div class="progress-label"><span>${visitedCountTotal()} de ${CLIENTS.length} visitadas neste ciclo</span><span class="pct">${pct}%</span></div>
     </div>
 
     <div class="ov-section">
