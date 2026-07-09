@@ -583,6 +583,23 @@ const DAYS = {
   10:{name:"Laranjeiras", region:"Cidade histórica — fora de Aracaju"}
 };
 
+const DEBTS = [
+  {c:19090, titulos:3, valor:1384.59, atraso:245, venc:"06/11/2025"},
+  {c:5787, titulos:1, valor:613.88, atraso:90, venc:"10/04/2026"},
+  {c:22533, titulos:1, valor:306.69, atraso:78, venc:"22/04/2026"},
+  {c:20663, titulos:1, valor:133.15, atraso:41, venc:"29/05/2026"},
+  {c:12521, titulos:1, valor:357.28, atraso:35, venc:"04/06/2026", f:"AGM Comercial Ltda ME", r:"AGM Comercial Ltda ME", t:"(79) 98854-2330"},
+  {c:23917, titulos:1, valor:354.62, atraso:27, venc:"12/06/2026"},
+  {c:21675, titulos:1, valor:140.40, atraso:22, venc:"17/06/2026"},
+  {c:21156, titulos:1, valor:560.40, atraso:13, venc:"26/06/2026"},
+  {c:24643, titulos:1, valor:81.20, atraso:6, venc:"03/07/2026"},
+  {c:5785, titulos:1, valor:101.79, atraso:6, venc:"03/07/2026"},
+  {c:15026, titulos:1, valor:193.91, atraso:3, venc:"06/07/2026"},
+  {c:20648, titulos:1, valor:940.74, atraso:2, venc:"07/07/2026"},
+  {c:2507, titulos:1, valor:131.37, atraso:2, venc:"07/07/2026"},
+  {c:16921, titulos:1, valor:112.41, atraso:2, venc:"07/07/2026"}
+];
+
 const WEEKDAYS = ["Segunda","Terça","Quarta","Quinta","Sexta"];
 function weekdayOf(d){ return WEEKDAYS[(d-1)%5]; }
 function weekOf(d){ return Math.floor((d-1)/5)+1; }
@@ -634,6 +651,29 @@ function waHref(waUrl, fantasia){
 }
 function waHrefFromPhone(phone, fantasia){
   return waHref('https://wa.me/55' + phone.replace(/\D/g,''), fantasia);
+}
+
+function debtRow(d){
+  const cl = CLIENTS.find(x => x.c === d.c);
+  return {
+    ...d,
+    f: cl ? cl.f : d.f,
+    r: cl ? cl.r : d.r,
+    b: cl ? cl.b : '',
+    ci: cl ? cl.ci : '',
+    t: cl ? cl.t : d.t,
+    maps: cl ? cl.maps : null,
+    inRoute: !!cl,
+  };
+}
+function waMessageDebt(fantasia, d){
+  if(d.titulos > 1){
+    return `Olá, ${fantasia}! Aqui é o Wesley, da Distribuidora Tio Luiz.\n\nPassando para lembrar que há ${d.titulos} títulos em aberto, totalizando ${money(d.valor)} (o mais antigo venceu em ${d.venc}, já com ${d.atraso} dias em atraso).\n\nSe já foi pago, pode desconsiderar — e se precisar negociar o prazo, é só me chamar. Fico à disposição!`;
+  }
+  return `Olá, ${fantasia}! Aqui é o Wesley, da Distribuidora Tio Luiz.\n\nPassando para lembrar sobre um título em aberto no valor de ${money(d.valor)}, com vencimento em ${d.venc} (já são ${d.atraso} dias em atraso).\n\nSe já foi pago, pode desconsiderar — e se precisar negociar o prazo, é só me chamar. Fico à disposição!`;
+}
+function waHrefDebt(phone, fantasia, d){
+  return 'https://wa.me/55' + phone.replace(/\D/g,'') + '?text=' + encodeURIComponent(waMessageDebt(fantasia, d));
 }
 
 let state = loadState();
@@ -864,6 +904,7 @@ function renderTabs(){
   items.push({view:'overview', n:'RESUMO', name:'Visão geral', cnt:`${visitedCountTotal()}/${CLIENTS.length} visitadas`, pct:null});
   const nets = networkGroups();
   items.push({view:'networks', n:'REDES', name:'Redes de farmácias', cnt:`${nets.length} redes · ${nets.reduce((s,g)=>s+g.stores.length,0)} lojas`, pct:null});
+  items.push({view:'debts', n:'COBRANÇA', name:'Inadimplentes', cnt:`${DEBTS.length} clientes · ${money(DEBTS.reduce((s,d)=>s+d.valor,0))}`, pct:null});
   for(let d=1; d<=Object.keys(DAYS).length; d++){
     const total = clientsForDay(d).length;
     const vis = visitedCountDay(d);
@@ -903,7 +944,7 @@ function renderTabs(){
   menu.querySelectorAll('.route-menu-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const v = btn.dataset.view;
-      activeView = (v === 'overview' || v === 'networks') ? v : Number(v);
+      activeView = (v === 'overview' || v === 'networks' || v === 'debts') ? v : Number(v);
       tabsMenuOpen = false;
       render();
     });
@@ -1123,12 +1164,52 @@ function attachNetworkEvents(){
   });
 }
 
+function renderDebts(){
+  const rows = DEBTS.map(debtRow).filter(matchesSearch);
+  rows.sort((a,b) => b.atraso - a.atraso);
+  const totalValor = DEBTS.reduce((s,d) => s + d.valor, 0);
+  return `
+    <div class="day-head">
+      <div>
+        <h2>Inadimplentes</h2>
+        <div class="meta">${DEBTS.length} clientes · ${money(totalValor)} em atraso</div>
+      </div>
+    </div>
+    ${rows.map(d => `
+      <div class="card" data-cod="debt-${d.c}">
+        <div class="card-float">
+          <div class="card-top">
+            <div>
+              <div class="card-name"><span class="code-chip">#${d.c}</span><span class="card-name-text">${escapeHtml(d.f)}</span></div>
+              ${d.r ? `<div class="card-razao">${escapeHtml(d.r)}</div>` : ''}
+            </div>
+            <div class="card-cod mono">${money(d.valor)}</div>
+          </div>
+          <div class="badges">
+            <span class="badge ${d.atraso > 60 ? 'crit' : d.atraso > 20 ? 'warn' : ''}">${d.atraso} dias em atraso</span>
+            ${d.titulos > 1 ? `<span class="badge">${d.titulos} títulos</span>` : ''}
+            ${d.inRoute ? `<span class="badge bairro">${escapeHtml(d.b)}${d.ci && d.ci!=='Aracaju' ? ' · '+escapeHtml(d.ci) : ''}</span>` : `<span class="badge warn">Não cadastrado na rota</span>`}
+          </div>
+          <div class="card-info">
+            <div class="row">Vencimento mais antigo: ${d.venc}</div>
+          </div>
+          <div class="card-foot">
+            ${d.t ? `<a class="btn primary" href="${waHrefDebt(d.t, d.f, d)}" target="_blank" rel="noopener">Enviar cobrança no WhatsApp</a>` : `<span class="stat-value muted">Sem telefone cadastrado</span>`}
+            ${d.maps ? `<a class="btn" href="${d.maps}" target="_blank" rel="noopener">Abrir no Maps</a>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
 function render(){
   renderTabs();
   renderManifestStats();
   const el = document.getElementById('content');
   if(activeView === 'overview') el.innerHTML = renderOverview();
   else if(activeView === 'networks') el.innerHTML = renderNetworks();
+  else if(activeView === 'debts') el.innerHTML = renderDebts();
   else el.innerHTML = renderDayView(activeView);
   attachCardEvents();
   if(activeView === 'networks') attachNetworkEvents();
