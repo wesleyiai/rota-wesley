@@ -343,19 +343,6 @@ input,textarea{font-family:inherit;}
 .hist-empty{color:var(--ink-faint);font-size:13.5px;padding-top:6px;font-family:'Plex Mono';}
 
 /* ---------- Overview ---------- */
-.ov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px;}
-.ov-tile{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--border-strong);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);}
-.ov-tile .lbl{font-family:'Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);display:flex;align-items:center;gap:5px;}
-.ov-tile .val{font-family:'Plex Mono';font-size:27px;font-weight:600;margin-top:7px;letter-spacing:-.02em;}
-.ov-tile.accent{border-top-color:var(--accent);}
-.ov-tile.accent .val{color:var(--accent);}
-.ov-tile.money .val{color:var(--ink);}
-.ov-tile.crit{border-top-color:var(--crit);}
-.ov-tile.crit .val{color:var(--crit);}
-.ov-tile.good{border-top-color:var(--good);}
-.ov-tile.good .val{color:var(--good);}
-.ov-tile.warn{border-top-color:var(--warn);}
-.ov-tile.warn .val{color:var(--warn);}
 
 .progress-outer{margin-top:18px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent-cyan);border-radius:var(--radius);padding:16px 16px 14px;box-shadow:var(--shadow);}
 .progress-eyebrow{font-family:'Plex Mono';font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-cyan);}
@@ -1069,14 +1056,6 @@ function renderOverview(){
   const maxVal = Math.max(1, ...barrows.map(r=>r.total));
 
   return `
-    <div class="ov-grid">
-      <div class="ov-tile accent"><div class="lbl">Total de clientes</div><div class="val">${CLIENTS.length}</div></div>
-      <div class="ov-tile good"><div class="lbl">Visitadas</div><div class="val">${visitedCountTotal()}</div></div>
-      <div class="ov-tile warn"><div class="lbl">Faltam visitar</div><div class="val">${remainingCountTotal()}</div></div>
-      <div class="ov-tile good"><div class="lbl">Compraram</div><div class="val">${purchasedCountInCycle()}</div></div>
-      <div class="ov-tile money"><div class="lbl">Faturado no ciclo</div><div class="val">${money(totalInCycle())}</div></div>
-    </div>
-
     <div class="progress-outer">
       <div class="progress-eyebrow">Status da rota</div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
