@@ -107,6 +107,8 @@ input,textarea{font-family:inherit;}
 .mstat.accent b{color:var(--accent-cyan);}
 .mstat.money{border-left-color:var(--gold);}
 .mstat.money b{color:var(--gold);}
+.mstat.proj{border-left-color:var(--live);}
+.mstat.proj b{color:var(--live);}
 
 /* ---------- Route strip (day nav dropdown) ---------- */
 .route-strip{
@@ -873,6 +875,26 @@ function totalInCycle(){
   }
   return sum;
 }
+function purchasesInMonth(cod, ref){
+  const list = state.purchases[cod] || [];
+  return list.filter(p => {
+    const d = parseISODateLocal(p.date);
+    return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
+  });
+}
+function totalInMonth(ref){
+  let sum = 0;
+  for(const cod in state.purchases){
+    for(const p of purchasesInMonth(cod, ref)) sum += Number(p.value)||0;
+  }
+  return sum;
+}
+function projectedMonthRevenue(ref){
+  const total = totalInMonth(ref);
+  const daysInMonth = new Date(ref.getFullYear(), ref.getMonth()+1, 0).getDate();
+  const dayOfMonth = ref.getDate();
+  return dayOfMonth > 0 ? (total / dayOfMonth) * daysInMonth : total;
+}
 function purchasedCountInCycle(){
   let count = 0;
   for(const cod in state.purchases){
@@ -955,11 +977,13 @@ function renderManifestStats(){
   const el = document.getElementById('manifestStats');
   const start = new Date(state.cycleStart);
   const cycleEnd = new Date(start.getFullYear(), start.getMonth()+1, 0); // último dia do mês
+  const now = new Date();
   el.innerHTML = `
     <div class="mstat good"><b>${visitedCountTotal()}/${CLIENTS.length}</b><span>Visitadas</span></div>
     <div class="mstat warn"><b>${remainingCountTotal()}</b><span>Faltam visitar</span></div>
     <div class="mstat accent"><b>${purchasedCountInCycle()}</b><span>Compraram</span></div>
     <div class="mstat money"><b>${money(totalInCycle())}</b><span>Faturado</span></div>
+    <div class="mstat proj"><b>${money(projectedMonthRevenue(now))}</b><span>Projeção do mês</span></div>
     <div class="mstat"><b>${fmtDateBR(state.cycleStart)}</b><span>Início do ciclo</span></div>
     <div class="mstat"><b>${fmtDateBR(cycleEnd.toISOString().slice(0,10))}</b><span>Fim do mês</span></div>
   `;
@@ -1635,6 +1659,27 @@ async function drawReportCanvas(){
   ctx.font = "600 10px 'Plex Sans'";
   const avgTicket = purchased > 0 ? revenue/purchased : 0;
   ctx.fillText('Ticket médio: ' + money(avgTicket), margin + contentW - 18, y + 34);
+  ctx.textAlign = 'left';
+
+  y += 76;
+
+  // month revenue projection callout band
+  const monthTotal = totalInMonth(now);
+  const monthProjected = projectedMonthRevenue(now);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  roundRectPath(ctx, margin, y, contentW, 56, 6);
+  ctx.fillStyle = '#E1F5F1';
+  ctx.fill();
+  ctx.fillStyle = '#0A7A67';
+  ctx.font = "600 10px 'Plex Mono'";
+  ctx.fillText('PROJEÇÃO DE FECHAMENTO DO MÊS', margin + 18, y + 24);
+  ctx.fillStyle = '#0A0F1C';
+  ctx.font = "700 24px 'Plex Sans'";
+  ctx.fillText(money(monthProjected), margin + 18, y + 46);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#54606D';
+  ctx.font = "600 10px 'Plex Sans'";
+  ctx.fillText('Dia ' + now.getDate() + ' de ' + daysInMonth + ' · Faturado: ' + money(monthTotal), margin + contentW - 18, y + 34);
   ctx.textAlign = 'left';
 
   y += 76;
