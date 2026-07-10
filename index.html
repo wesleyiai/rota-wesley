@@ -87,28 +87,52 @@ input,textarea{font-family:inherit;}
 .manifest-eyebrow .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 0 3px rgba(10,168,143,.25);}
 .manifest h1{font-size:clamp(22px,6vw,28px);color:#fff;}
 .manifest-sub{color:#95A4C2;font-size:14.5px;margin-top:5px;}
-.manifest-stats{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;
+/* ---------- Live dashboard (always-visible summary) ---------- */
+.live-dash{max-width:920px;margin:0 auto;padding:16px 16px 4px;}
+.ld-meta{font-size:12px;color:var(--ink-faint);margin-bottom:10px;}
+.ld-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.ld-card{
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--border-strong);
+  border-radius:var(--radius);padding:12px 12px;
+  box-shadow:0 1px 0 rgba(255,255,255,.75) inset, 0 -1px 0 rgba(12,18,32,.12) inset, 0 1px 2px rgba(12,18,32,.06);
 }
-.mstat{
-  background:rgba(255,255,255,.045);
-  border:1px solid rgba(255,255,255,.10);
-  border-left:2px solid rgba(255,255,255,.14);
-  border-radius:6px;
-  padding:10px 10px;
+.ld-card b{display:block;font-family:'Plex Mono';font-size:24px;font-weight:700;color:var(--ink);line-height:1.1;}
+.ld-card span{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;display:block;margin-top:4px;font-weight:600;}
+.ld-card em{display:block;font-size:12.5px;font-style:normal;font-weight:700;margin-top:4px;}
+.ld-card.c-total{border-left-color:var(--accent);}
+.ld-card.c-good{border-left-color:var(--good);}
+.ld-card.c-good em{color:var(--good);}
+.ld-card.c-warn{border-left-color:var(--warn);}
+.ld-card.c-warn em{color:var(--warn);}
+.ld-card.c-accent{border-left-color:var(--accent-cyan);}
+.ld-card.c-accent em{color:var(--accent-cyan);}
+
+.ld-mid{display:grid;grid-template-columns:150px 1fr;gap:24px;align-items:center;margin-top:20px;}
+.ld-ring{position:relative;width:150px;height:150px;}
+.ld-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+.ld-ring .ring-bg{fill:none;stroke:var(--surface-2);stroke-width:13;}
+.ld-ring .ring-fill{fill:none;stroke:var(--accent);stroke-width:13;stroke-linecap:round;transition:stroke-dashoffset .3s ease;}
+.ld-ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ld-ring-label b{font-family:'Plex Mono';font-size:26px;font-weight:700;color:var(--ink);}
+.ld-ring-label span{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+
+.ld-band{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  border-radius:var(--radius);padding:14px 18px;margin-top:16px;
 }
-.mstat b{display:block;font-family:'Plex Mono';font-size:17px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;line-height:1.2;}
-.mstat span{font-size:10.5px;color:#8393B4;text-transform:uppercase;letter-spacing:.05em;display:block;margin-top:3px;}
-.mstat.good{border-left-color:var(--good);}
-.mstat.good b{color:#4ADE80;}
-.mstat.warn{border-left-color:var(--warn);}
-.mstat.warn b{color:#FBBF24;}
-.mstat.accent{border-left-color:var(--accent-cyan);}
-.mstat.accent b{color:var(--accent-cyan);}
-.mstat.money{border-left-color:var(--gold);}
-.mstat.money b{color:var(--gold);}
-.mstat.proj{border-left-color:var(--live);}
-.mstat.proj b{color:var(--live);}
+.ld-band .eyebrow{font-family:'Plex Mono';font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:4px;}
+.ld-band b{font-family:'Plex Sans';font-size:24px;font-weight:700;color:var(--ink);}
+.ld-band .sub{font-size:13px;font-weight:600;color:var(--ink-soft);}
+.ld-band.money{background:var(--accent-tint);}
+.ld-band.money .eyebrow{color:var(--accent-deep);}
+.ld-band.proj{background:var(--live-tint);}
+.ld-band.proj .eyebrow{color:#0A7A67;}
+
+@media (max-width:520px){
+  .ld-cards{grid-template-columns:repeat(2,1fr);}
+  .ld-mid{grid-template-columns:1fr;}
+  .ld-mid .ld-ring{margin:0 auto;}
+}
 
 /* ---------- Route strip (day nav dropdown) ---------- */
 .route-strip{
@@ -461,7 +485,6 @@ input,textarea{font-family:inherit;}
 
 /* ---------- Mobile ---------- */
 @media(max-width:640px){
-  .manifest-stats{grid-template-columns:repeat(2,1fr);}
   .card-top{flex-direction:column;}
   .card-cod{align-self:flex-end;margin-top:-20px;}
   .log-form-grid{grid-template-columns:1fr;}
@@ -481,8 +504,6 @@ input,textarea{font-family:inherit;}
   .day-head .btn.primary{width:100%;justify-content:center;}
 }
 @media(max-width:400px){
-  .manifest-stats{grid-template-columns:1fr 1fr;}
-  .mstat b{font-size:15.5px;}
   .brand-logo{width:42px;height:42px;}
 }
 </style>
@@ -502,9 +523,10 @@ input,textarea{font-family:inherit;}
         <span class="dot"></span><span id="syncBadgeText">Sincronização desligada</span>
       </button>
     </div>
-    <div class="manifest-stats" id="manifestStats"></div>
   </div>
 </div>
+
+<div class="live-dash" id="liveDash"></div>
 
 <div class="modal-backdrop" id="syncModal">
   <div class="modal-box">
@@ -974,18 +996,72 @@ function renderTabs(){
 }
 
 function renderManifestStats(){
-  const el = document.getElementById('manifestStats');
+  const el = document.getElementById('liveDash');
   const start = new Date(state.cycleStart);
   const cycleEnd = new Date(start.getFullYear(), start.getMonth()+1, 0); // último dia do mês
   const now = new Date();
+
+  const total = CLIENTS.length;
+  const visited = visitedCountTotal();
+  const remaining = remainingCountTotal();
+  const purchased = purchasedCountInCycle();
+  const pctVisited = total > 0 ? visited/total : 0;
+  const pctRemaining = total > 0 ? remaining/total : 0;
+  const pctPurchased = total > 0 ? purchased/total : 0;
+  const revenue = totalInCycle();
+  const avgTicket = purchased > 0 ? revenue/purchased : 0;
+  const monthTotal = totalInMonth(now);
+  const monthProjected = projectedMonthRevenue(now);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+
+  const ringR = 52, ringC = 2*Math.PI*ringR;
+  const ringOffset = ringC * (1 - pctVisited);
+
   el.innerHTML = `
-    <div class="mstat good"><b>${visitedCountTotal()}/${CLIENTS.length}</b><span>Visitadas</span></div>
-    <div class="mstat warn"><b>${remainingCountTotal()}</b><span>Faltam visitar</span></div>
-    <div class="mstat accent"><b>${purchasedCountInCycle()}</b><span>Compraram</span></div>
-    <div class="mstat money"><b>${money(totalInCycle())}</b><span>Faturado</span></div>
-    <div class="mstat proj"><b>${money(projectedMonthRevenue(now))}</b><span>Projeção do mês</span></div>
-    <div class="mstat"><b>${fmtDateBR(state.cycleStart)}</b><span>Início do ciclo</span></div>
-    <div class="mstat"><b>${fmtDateBR(cycleEnd.toISOString().slice(0,10))}</b><span>Fim do mês</span></div>
+    <div class="ld-meta">Ciclo iniciado em ${fmtDateBR(state.cycleStart)} · Fim do mês: ${fmtDateBR(cycleEnd.toISOString().slice(0,10))}</div>
+    <div class="ld-cards">
+      <div class="ld-card c-total"><b>${total}</b><span>Total de clientes</span></div>
+      <div class="ld-card c-good"><b>${visited}</b><span>Visitados</span><em>${Math.round(pctVisited*100)}% da rota</em></div>
+      <div class="ld-card c-warn"><b>${remaining}</b><span>Faltam visitar</span><em>${Math.round(pctRemaining*100)}% da rota</em></div>
+      <div class="ld-card c-accent"><b>${purchased}</b><span>Compraram</span><em>${Math.round(pctPurchased*100)}% da rota</em></div>
+    </div>
+    <div class="ld-mid">
+      <div class="ld-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="${ringR}"></circle>
+          <circle class="ring-fill" cx="60" cy="60" r="${ringR}" style="stroke-dasharray:${ringC};stroke-dashoffset:${ringOffset};"></circle>
+        </svg>
+        <div class="ld-ring-label"><b>${Math.round(pctVisited*100)}%</b><span>da rota</span></div>
+      </div>
+      <div class="ov-section" style="margin-top:0;">
+        <h3>Comparativo da carteira</h3>
+        <div class="barlist">
+          <div class="barrow">
+            <div class="lbl">Visitados</div>
+            <div class="amt mono" style="font-weight:700;color:var(--ink);">${visited} · ${Math.round(pctVisited*100)}%</div>
+            <div class="bartrack"><div class="barfill" style="width:${Math.round(pctVisited*100)}%;background:var(--good);"></div></div>
+          </div>
+          <div class="barrow">
+            <div class="lbl">Compraram</div>
+            <div class="amt mono" style="font-weight:700;color:var(--ink);">${purchased} · ${Math.round(pctPurchased*100)}%</div>
+            <div class="bartrack"><div class="barfill" style="width:${Math.round(pctPurchased*100)}%;background:var(--accent-cyan);"></div></div>
+          </div>
+          <div class="barrow">
+            <div class="lbl">Faltam visitar</div>
+            <div class="amt mono" style="font-weight:700;color:var(--ink);">${remaining} · ${Math.round(pctRemaining*100)}%</div>
+            <div class="bartrack"><div class="barfill" style="width:${Math.round(pctRemaining*100)}%;background:var(--warn);"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ld-band money">
+      <div><span class="eyebrow">Faturado no ciclo</span><b>${money(revenue)}</b></div>
+      <div class="sub">Ticket médio: ${money(avgTicket)}</div>
+    </div>
+    <div class="ld-band proj">
+      <div><span class="eyebrow">Projeção de fechamento do mês</span><b>${money(monthProjected)}</b></div>
+      <div class="sub">Dia ${now.getDate()} de ${daysInMonth} · Faturado: ${money(monthTotal)}</div>
+    </div>
   `;
 }
 
