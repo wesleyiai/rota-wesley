@@ -154,6 +154,12 @@ input,textarea{font-family:inherit;}
   50%{left:130%;}
   100%{left:130%;}
 }
+@keyframes ldFlashPulse{
+  0%{transform:scale(1);}
+  30%{transform:scale(1.16);}
+  100%{transform:scale(1);}
+}
+.ld-flash b{display:inline-block;animation:ldFlashPulse .5s ease-out;}
 
 @media (max-width:520px){
   .ld-cards{grid-template-columns:repeat(2,1fr);}
@@ -1022,7 +1028,8 @@ function renderTabs(){
   });
 }
 
-let ldRingBooted = false;
+let ldBooted = false;
+let ldPrevValues = null;
 function renderManifestStats(){
   const el = document.getElementById('liveDash');
   const start = new Date(state.cycleStart);
@@ -1044,14 +1051,28 @@ function renderManifestStats(){
 
   const ringR = 52, ringC = 2*Math.PI*ringR;
   const ringOffset = ringC * (1 - pctVisited);
+  const pctVisitedR = Math.round(pctVisited*100);
+  const pctRemainingR = Math.round(pctRemaining*100);
+  const pctPurchasedR = Math.round(pctPurchased*100);
+
+  const prev = ldPrevValues;
+  const flash = {
+    total: prev && prev.total !== total,
+    visited: prev && prev.visited !== visited,
+    remaining: prev && prev.remaining !== remaining,
+    purchased: prev && prev.purchased !== purchased,
+    revenue: prev && prev.revenue !== revenue,
+    monthProjected: prev && prev.monthProjected !== monthProjected,
+  };
+  ldPrevValues = { total, visited, remaining, purchased, revenue, monthProjected };
 
   el.innerHTML = `
     <div class="ld-meta">Ciclo iniciado em ${fmtDateBR(state.cycleStart)} · Fim do mês: ${fmtDateBR(cycleEnd.toISOString().slice(0,10))}</div>
     <div class="ld-cards">
-      <div class="ld-card c-total"><b>${total}</b><span>Total de clientes</span></div>
-      <div class="ld-card c-good"><b>${visited}</b><span>Visitados</span><em>${Math.round(pctVisited*100)}% da rota</em></div>
-      <div class="ld-card c-warn"><b>${remaining}</b><span>Faltam visitar</span><em>${Math.round(pctRemaining*100)}% da rota</em></div>
-      <div class="ld-card c-accent"><b>${purchased}</b><span>Compraram</span><em>${Math.round(pctPurchased*100)}% da rota</em></div>
+      <div class="ld-card c-total${flash.total ? ' ld-flash' : ''}"><b data-anim="int" data-target="${total}">${total}</b><span>Total de clientes</span></div>
+      <div class="ld-card c-good${flash.visited ? ' ld-flash' : ''}"><b data-anim="int" data-target="${visited}">${visited}</b><span>Visitados</span><em>${pctVisitedR}% da rota</em></div>
+      <div class="ld-card c-warn${flash.remaining ? ' ld-flash' : ''}"><b data-anim="int" data-target="${remaining}">${remaining}</b><span>Faltam visitar</span><em>${pctRemainingR}% da rota</em></div>
+      <div class="ld-card c-accent${flash.purchased ? ' ld-flash' : ''}"><b data-anim="int" data-target="${purchased}">${purchased}</b><span>Compraram</span><em>${pctPurchasedR}% da rota</em></div>
     </div>
     <div class="ld-mid">
       <div class="ld-ring">
@@ -1063,48 +1084,83 @@ function renderManifestStats(){
             </linearGradient>
           </defs>
           <circle class="ring-bg" cx="60" cy="60" r="${ringR}"></circle>
-          <circle class="ring-fill" cx="60" cy="60" r="${ringR}" style="stroke:url(#ldRingGrad);stroke-dasharray:${ringC};stroke-dashoffset:${ldRingBooted ? ringOffset : ringC};"></circle>
+          <circle class="ring-fill" cx="60" cy="60" r="${ringR}" style="stroke:url(#ldRingGrad);stroke-dasharray:${ringC};stroke-dashoffset:${ldBooted ? ringOffset : ringC};"></circle>
         </svg>
-        <div class="ld-ring-label"><b>${Math.round(pctVisited*100)}%</b><span>da rota</span></div>
+        <div class="ld-ring-label"><b>${pctVisitedR}%</b><span>da rota</span></div>
       </div>
       <div class="ov-section" style="margin-top:0;">
         <h3>Comparativo da carteira</h3>
         <div class="barlist">
           <div class="barrow">
             <div class="lbl">Visitados</div>
-            <div class="amt mono" style="font-weight:700;color:var(--ink);">${visited} · ${Math.round(pctVisited*100)}%</div>
-            <div class="bartrack"><div class="barfill" style="width:${Math.round(pctVisited*100)}%;background:linear-gradient(90deg,var(--good),#34D399);box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(23,163,74,.45);"></div></div>
+            <div class="amt mono" style="font-weight:700;color:var(--ink);">${visited} · ${pctVisitedR}%</div>
+            <div class="bartrack"><div class="barfill" data-target-width="${pctVisitedR}%" style="width:${ldBooted ? pctVisitedR : 0}%;background:linear-gradient(90deg,var(--good),#34D399);box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(23,163,74,.45);"></div></div>
           </div>
           <div class="barrow">
             <div class="lbl">Compraram</div>
-            <div class="amt mono" style="font-weight:700;color:var(--ink);">${purchased} · ${Math.round(pctPurchased*100)}%</div>
-            <div class="bartrack"><div class="barfill" style="width:${Math.round(pctPurchased*100)}%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent));box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(0,184,196,.45);"></div></div>
+            <div class="amt mono" style="font-weight:700;color:var(--ink);">${purchased} · ${pctPurchasedR}%</div>
+            <div class="bartrack"><div class="barfill" data-target-width="${pctPurchasedR}%" style="width:${ldBooted ? pctPurchasedR : 0}%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent));box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(0,184,196,.45);"></div></div>
           </div>
           <div class="barrow">
             <div class="lbl">Faltam visitar</div>
-            <div class="amt mono" style="font-weight:700;color:var(--ink);">${remaining} · ${Math.round(pctRemaining*100)}%</div>
-            <div class="bartrack"><div class="barfill" style="width:${Math.round(pctRemaining*100)}%;background:linear-gradient(90deg,var(--warn),#F59E0B);box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(217,119,6,.4);"></div></div>
+            <div class="amt mono" style="font-weight:700;color:var(--ink);">${remaining} · ${pctRemainingR}%</div>
+            <div class="bartrack"><div class="barfill" data-target-width="${pctRemainingR}%" style="width:${ldBooted ? pctRemainingR : 0}%;background:linear-gradient(90deg,var(--warn),#F59E0B);box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(217,119,6,.4);"></div></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="ld-band money">
-      <div><span class="eyebrow"><span class="eyebrow-dot"></span>Faturado no ciclo</span><b>${money(revenue)}</b></div>
+    <div class="ld-band money${flash.revenue ? ' ld-flash' : ''}">
+      <div><span class="eyebrow"><span class="eyebrow-dot"></span>Faturado no ciclo</span><b data-anim="money" data-target="${revenue}">${money(revenue)}</b></div>
       <div class="sub">Ticket médio: ${money(avgTicket)}</div>
     </div>
-    <div class="ld-band proj">
-      <div><span class="eyebrow"><span class="eyebrow-dot"></span>Projeção de fechamento do mês</span><b>${money(monthProjected)}</b></div>
+    <div class="ld-band proj${flash.monthProjected ? ' ld-flash' : ''}">
+      <div><span class="eyebrow"><span class="eyebrow-dot"></span>Projeção de fechamento do mês</span><b data-anim="money" data-target="${monthProjected}">${money(monthProjected)}</b></div>
       <div class="sub">Dia ${now.getDate()} de ${daysInMonth} · Faturado: ${money(monthTotal)}</div>
     </div>
   `;
 
-  if(!ldRingBooted){
-    ldRingBooted = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const ringFillEl = el.querySelector('.ring-fill');
-      if(ringFillEl) ringFillEl.style.strokeDashoffset = ringOffset;
-    }));
+  if(!ldBooted){
+    ldBooted = true;
+    bootAnimateLiveDash(el, ringOffset);
   }
+}
+
+function bootAnimateLiveDash(el, ringOffset){
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced){
+    const ringFillEl = el.querySelector('.ring-fill');
+    if(ringFillEl) ringFillEl.style.strokeDashoffset = ringOffset;
+    el.querySelectorAll('[data-target-width]').forEach(bar => { bar.style.width = bar.dataset.targetWidth; });
+    return;
+  }
+
+  const numNodes = Array.from(el.querySelectorAll('[data-anim]'));
+  numNodes.forEach(node => { node.textContent = node.dataset.anim === 'money' ? money(0) : '0'; });
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const ringFillEl = el.querySelector('.ring-fill');
+    if(ringFillEl) ringFillEl.style.strokeDashoffset = ringOffset;
+
+    el.querySelectorAll('[data-target-width]').forEach(bar => { bar.style.width = bar.dataset.targetWidth; });
+
+    const bootStart = performance.now();
+    numNodes.forEach((node, i) => {
+      const target = parseFloat(node.dataset.target);
+      const isMoney = node.dataset.anim === 'money';
+      const delay = i * 60;
+      const duration = 850;
+      function step(now){
+        const elapsed = now - bootStart - delay;
+        if(elapsed < 0){ requestAnimationFrame(step); return; }
+        const t = Math.min(1, elapsed/duration);
+        const eased = 1 - Math.pow(1-t, 3);
+        const val = target*eased;
+        node.textContent = isMoney ? money(val) : String(Math.round(val));
+        if(t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }));
 }
 
 function badgesFor(c){
