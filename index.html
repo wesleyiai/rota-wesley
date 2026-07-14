@@ -394,11 +394,13 @@ input,textarea{font-family:inherit;}
 .history[open] summary::before{content:'▾ ';}
 .hist-entry{
   display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);
-  font-family:'Plex Mono';font-size:13.5px;align-items:baseline;
+  font-family:'Plex Mono';font-size:13.5px;align-items:baseline;cursor:pointer;
 }
+.hist-entry:hover{background:var(--surface-2);}
 .hist-entry .v{color:var(--accent-deep);font-weight:600;min-width:82px;}
 .hist-entry .d{color:var(--ink-soft);min-width:82px;}
 .hist-entry .n{color:var(--ink);font-family:'Plex Sans';flex:1;}
+.hist-entry .edit-ic{color:var(--ink-faint);font-size:12px;flex-shrink:0;}
 .hist-empty{color:var(--ink-faint);font-size:13.5px;padding-top:6px;font-family:'Plex Mono';}
 
 /* ---------- Overview ---------- */
@@ -591,6 +593,20 @@ input,textarea{font-family:inherit;}
       <button class="btn primary" id="btnSaveNote">Salvar</button>
       <button class="btn ghost" id="btnRemoveNote">Remover anotação</button>
       <button class="btn ghost" id="btnCloseNote">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="purchaseModal">
+  <div class="modal-box">
+    <h3 id="purchaseModalTitle">Editar compra</h3>
+    <div class="field"><label>Data</label><input id="purchaseModalDate" type="date" required></div>
+    <div class="field"><label>Valor (R$)</label><input id="purchaseModalValue" type="number" step="0.01" min="0" placeholder="0,00" required></div>
+    <div class="field"><label>Obs. (opcional)</label><input id="purchaseModalNotes" type="text" placeholder="ex: pedido de reposição"></div>
+    <div class="modal-actions">
+      <button class="btn primary" id="btnSavePurchase">Salvar</button>
+      <button class="btn ghost" id="btnDeletePurchase">Excluir compra</button>
+      <button class="btn ghost" id="btnClosePurchase">Fechar</button>
     </div>
   </div>
 </div>
@@ -885,7 +901,8 @@ function nearestNeighborOrder(list){
 }
 function orderedClientsForDay(day){
   const base = clientsForDay(day);
-  return dayOrderMode[day] === 'optimized' ? nearestNeighborOrder(base) : base;
+  const ordered = dayOrderMode[day] === 'optimized' ? nearestNeighborOrder(base) : base;
+  return ordered.slice().sort((a,b) => (state.visited[a.c]?1:0) - (state.visited[b.c]?1:0));
 }
 function networkKey(f){
   const norm = f.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -1182,9 +1199,10 @@ function cardHtml(c, n){
   const freq = state.freq[c.c] || '';
   const lastVisit = state.lastVisit[c.c];
   const note = state.notes[c.c] || '';
-  const hist = (state.purchases[c.c]||[]).slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
+  const purchasesRaw = state.purchases[c.c]||[];
+  const hist = purchasesRaw.slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
   const histHtml = hist.length
-    ? hist.map(p => `<div class="hist-entry"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span></div>`).join('')
+    ? hist.map(p => `<div class="hist-entry" data-action="edit-purchase" data-idx="${purchasesRaw.indexOf(p)}"><span class="v">${money(p.value)}</span><span class="d">${fmtDateBR(p.date)}</span><span class="n">${escapeHtml(p.notes||'')}</span><span class="edit-ic">✏️</span></div>`).join('')
     : `<div class="hist-empty">Nenhuma compra registrada ainda.</div>`;
   const daysSincePurchase = hist.length ? daysSince(parseISODateLocal(hist[0].date)) : null;
   const pStatus = purchaseStatusClass(daysSincePurchase, freq);
@@ -1443,6 +1461,9 @@ function attachCardEvents(){
       delete state.visited[cod]; saveState(); render();
     });
     if(noteTrigger) noteTrigger.addEventListener('click', () => openNoteModal(cod));
+    card.querySelectorAll('[data-action="edit-purchase"]').forEach(el => {
+      el.addEventListener('click', () => openPurchaseModal(cod, Number(el.dataset.idx)));
+    });
     if(toggleBtn) toggleBtn.addEventListener('click', () => {
       form.classList.toggle('open');
     });
@@ -1543,6 +1564,51 @@ document.getElementById('btnRemoveNote').addEventListener('click', () => {
 });
 document.getElementById('btnCloseNote').addEventListener('click', closeNoteModal);
 noteModal.addEventListener('click', e => { if(e.target === noteModal) closeNoteModal(); });
+
+/* ---------- Purchase edit modal wiring ---------- */
+const purchaseModal = document.getElementById('purchaseModal');
+let purchaseModalCod = null;
+let purchaseModalIdx = null;
+function openPurchaseModal(cod, idx){
+  const p = (state.purchases[cod] || [])[idx];
+  if(!p) return;
+  purchaseModalCod = cod;
+  purchaseModalIdx = idx;
+  const c = CLIENTS.find(x => String(x.c) === String(cod));
+  document.getElementById('purchaseModalTitle').textContent = c ? `Editar compra — ${c.f}` : 'Editar compra';
+  document.getElementById('purchaseModalDate').value = p.date;
+  document.getElementById('purchaseModalValue').value = p.value;
+  document.getElementById('purchaseModalNotes').value = p.notes || '';
+  purchaseModal.classList.add('open');
+}
+function closePurchaseModal(){ purchaseModal.classList.remove('open'); purchaseModalCod = null; purchaseModalIdx = null; }
+function savePurchaseModal(){
+  const list = state.purchases[purchaseModalCod];
+  if(!list || purchaseModalIdx == null || !list[purchaseModalIdx]) return closePurchaseModal();
+  const date = document.getElementById('purchaseModalDate').value;
+  if(!date){ showToast('Informe a data.'); return; }
+  const value = parseFloat(document.getElementById('purchaseModalValue').value) || 0;
+  const notes = document.getElementById('purchaseModalNotes').value || '';
+  list[purchaseModalIdx] = { ...list[purchaseModalIdx], date, value, notes };
+  saveState();
+  showToast('Compra atualizada — ' + money(value));
+  closePurchaseModal();
+  render();
+}
+function deletePurchaseModal(){
+  const list = state.purchases[purchaseModalCod];
+  if(!list || purchaseModalIdx == null || !list[purchaseModalIdx]) return closePurchaseModal();
+  if(!confirm('Excluir este registro de compra?')) return;
+  list.splice(purchaseModalIdx, 1);
+  saveState();
+  showToast('Compra excluída.');
+  closePurchaseModal();
+  render();
+}
+document.getElementById('btnSavePurchase').addEventListener('click', savePurchaseModal);
+document.getElementById('btnDeletePurchase').addEventListener('click', deletePurchaseModal);
+document.getElementById('btnClosePurchase').addEventListener('click', closePurchaseModal);
+purchaseModal.addEventListener('click', e => { if(e.target === purchaseModal) closePurchaseModal(); });
 
 /* ---------- Sync modal wiring ---------- */
 const syncModal = document.getElementById('syncModal');
